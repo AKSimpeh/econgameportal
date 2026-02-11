@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <title>Company Registry</title>
+</head>
+<body>
+  <h1>Approved Companies</h1>
+
+  <nav>
+    <a href="index.html">Home</a> |
+    <a href="companies.html">Companies</a> |
+    <a href="networth.html">Net Worth</a> |
+    <a href="regulations.html">Regulations</a>
+  </nav>
+
+  <hr>
+
+  <table border="1" cellpadding="8" id="companiesTable">
+    <thead>
+      <tr>
+        <th>Company</th>
+        <th>Members</th>
+        <th>Hour</th>
+        <th>Net Worth</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const CSV_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=0&single=true&output=csv";
+
+    async function loadCompanies() {
+      const res = await fetch(CSV_URL + "&t=" + Date.now());
+      const text = await res.text();
+
+      const lines = text.trim().split("\n");
+      const tbody = document.querySelector("#companiesTable tbody");
+      tbody.innerHTML = "";
+
+      for (let i = 1; i < lines.length; i++) {
+        const [team, networth, members, hour] = lines[i].split(",");
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${team}</td>
+            <td>${members || ""}</td>
+            <td>${hour || ""}</td>
+            <td>${networth}</td>
+          </tr>`;
+      }
+    }
+
+    loadCompanies();
+    setInterval(loadCompanies, 20000);
+  </script>
+
+</body>
+</html>
