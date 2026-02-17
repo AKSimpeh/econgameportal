@@ -1,60 +1,114 @@
 <!doctype html>
 <html>
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
   <title>Company Registry</title>
 </head>
 <body>
-  <h1>Approved Companies</h1>
 
-  <nav>
-    <a href="index.html">Home</a> |
-    <a href="companies.html">Companies</a> |
-    <a href="networth.html">Net Worth</a> |
-    <a href="regulations.html">Regulations</a>
-  </nav>
+<div class="topbar">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>Government Transparency Portal</h1>
+        <div class="sub">Economics Simulation • Official Records</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
 
-  <hr>
+    <div class="nav">
+      <a href="home.html" class="">Home</a>
+      <a href="companies.html" class="active">Companies</a>
+      <a href="networth.html" class="">Net Worth</a>
+      <a href="graphs.html" class="">Graphs</a>
+      <a href="regulations.html" class="">Regulations</a>
+    </div>
+  </div>
+</div>
 
-  <table border="1" cellpadding="8" id="companiesTable">
-    <thead>
-      <tr>
-        <th>Company</th>
-        <th>Members</th>
-        <th>Hour</th>
-        <th>Net Worth</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<div class="container">
+
+  <div class="card">
+    <div class="kpi">
+      <div>
+        <div class="label">Company Registry</div>
+        <div class="small" id="updated">Loading…</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
+
+    <table class="table" id="companiesTable">
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Members</th>
+          <th>Hour</th>
+          <th>Net Worth</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="error" id="err"></div>
+  </div>
 
   <script>
-    const CSV_URL =
-      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=0&single=true&output=csv";
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=0&single=true&output=csv";
+    const REFRESH_MS = 20000;
+    let lastRequestId = 0;
 
     async function loadCompanies() {
-      const res = await fetch(CSV_URL + "&t=" + Date.now());
-      const text = await res.text();
-
-      const lines = text.trim().split("\n");
+      const requestId = ++lastRequestId;
       const tbody = document.querySelector("#companiesTable tbody");
-      tbody.innerHTML = "";
+      const updated = document.getElementById("updated");
+      const err = document.getElementById("err");
+      err.textContent = "";
 
-      for (let i = 1; i < lines.length; i++) {
-        const [team, networth, members, hour] = lines[i].split(",");
+      try {
+        const res = await fetch(CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+        const text = await res.text();
 
-        tbody.innerHTML += `
+        if (requestId !== lastRequestId) return;
+
+        const lines = text.trim().split(/\r?\n/);
+        const rows = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const [team, networth, members, hour] = lines[i].split(",");
+          if (!team) continue;
+          rows.push({
+            team: (team || "").trim(),
+            members: (members || "").trim(),
+            hour: (hour || "").trim(),
+            networth: (networth || "").trim()
+          });
+        }
+
+        tbody.innerHTML = rows.map(r => `
           <tr>
-            <td>${team}</td>
-            <td>${members || ""}</td>
-            <td>${hour || ""}</td>
-            <td>${networth}</td>
-          </tr>`;
+            <td>${r.team}</td>
+            <td>${r.members}</td>
+            <td>${r.hour}</td>
+            <td>${r.networth}</td>
+          </tr>
+        `).join("") || `<tr><td colspan="4" class="small">No companies yet.</td></tr>`;
+
+        updated.textContent = "Updated: " + new Date().toLocaleString();
+      } catch (e) {
+        if (requestId !== lastRequestId) return;
+        tbody.innerHTML = "";
+        err.textContent = "Failed to load companies: " + e.message;
       }
     }
 
     loadCompanies();
-    setInterval(loadCompanies, 20000);
+    setInterval(loadCompanies, REFRESH_MS);
   </script>
+
+  <div class="footer">Maintained by Government • Data updates from Google Sheets</div>
+</div>
 
 </body>
 </html>

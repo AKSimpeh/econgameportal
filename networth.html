@@ -1,68 +1,109 @@
 <!doctype html>
 <html>
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
   <title>Net Worth</title>
 </head>
 <body>
-  <h1>Net Worth Leaderboard</h1>
 
-  <nav>
-    <a href="index.html">Home</a> |
-    <a href="companies.html">Companies</a> |
-    <a href="networth.html">Net Worth</a> |
-    <a href="regulations.html">Regulations</a>
-  </nav>
+<div class="topbar">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>Government Transparency Portal</h1>
+        <div class="sub">Economics Simulation • Official Records</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
 
-  <hr>
-  <p id="updated"></p>
-  <table border="1" cellpadding="8">
-    <thead>
-      <tr>
-        <th>Rank</th>
-        <th>Team</th>
-        <th>Net Worth</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+    <div class="nav">
+      <a href="home.html" class="">Home</a>
+      <a href="companies.html" class="">Companies</a>
+      <a href="networth.html" class="active">Net Worth</a>
+      <a href="graphs.html" class="">Graphs</a>
+      <a href="regulations.html" class="">Regulations</a>
+    </div>
+  </div>
+</div>
 
-<script>
-const CSV_URL =
-"https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=0&single=true&output=csv";
+<div class="container">
 
-async function loadNetWorth() {
-  const res = await fetch(CSV_URL + "&t=" + Date.now());
-  const text = await res.text();
+  <div class="card">
+    <div class="kpi">
+      <div>
+        <div class="label">Net Worth Leaderboard</div>
+        <div class="small" id="updated">Loading…</div>
+      </div>
+      <div class="badge">Auto-refresh</div>
+    </div>
 
-  const lines = text.trim().split("\n");
-  const rows = [];
+    <table class="table" id="nwTable">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Team</th>
+          <th>Net Worth</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
 
-  for (let i = 1; i < lines.length; i++) {
-    const [team, networth] = lines[i].split(",");
-    rows.push({ team, networth: Number(networth) });
-  }
+    <div class="error" id="err"></div>
+  </div>
 
-  rows.sort((a,b) => b.networth - a.networth);
+  <script>
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=0&single=true&output=csv";
+    const REFRESH_MS = 15000;
+    let lastRequestId = 0;
 
-  const tbody = document.querySelector("tbody");
-  tbody.innerHTML = "";
+    async function loadNetWorth() {
+      const requestId = ++lastRequestId;
+      const tbody = document.querySelector("#nwTable tbody");
+      const updated = document.getElementById("updated");
+      const err = document.getElementById("err");
+      err.textContent = "";
 
-  rows.forEach((r,i) => {
-    tbody.innerHTML += `
-      <tr>
-        <td>${i+1}</td>
-        <td>${r.team}</td>
-        <td>${r.networth}</td>
-      </tr>`;
-  });
-}
+      try {
+        const res = await fetch(CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+        const text = await res.text();
 
-loadNetWorth();
-setInterval(loadNetWorth, 15000);
-</script>
+        if (requestId !== lastRequestId) return;
 
+        const lines = text.trim().split(/\r?\n/);
+        const rows = [];
 
+        for (let i = 1; i < lines.length; i++) {
+          const [team, networth] = lines[i].split(",");
+          if (!team) continue;
+          rows.push({ team: team.trim(), networth: Number(networth) });
+        }
 
- 
+        rows.sort((a, b) => (b.networth || 0) - (a.networth || 0));
+
+        tbody.innerHTML = rows.map((r, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${r.team}</td>
+            <td>${Number.isFinite(r.networth) ? r.networth.toLocaleString() : ""}</td>
+          </tr>
+        `).join("") || `<tr><td colspan="3" class="small">No teams yet.</td></tr>`;
+
+        updated.textContent = "Updated: " + new Date().toLocaleString();
+      } catch (e) {
+        if (requestId !== lastRequestId) return;
+        tbody.innerHTML = "";
+        err.textContent = "Failed to load net worth: " + e.message;
+      }
+    }
+
+    loadNetWorth();
+    setInterval(loadNetWorth, REFRESH_MS);
+  </script>
+
+  <div class="footer">Maintained by Government • Data updates from Google Sheets</div>
+</div>
+
 </body>
 </html>

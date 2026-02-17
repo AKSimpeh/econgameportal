@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <title>Government Portal</title>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>Government Transparency Portal</h1>
+        <div class="sub">Economics Simulation • Official Records</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
+
+    <div class="nav">
+      <a href="home.html" class="active">Home</a>
+      <a href="companies.html" class="">Companies</a>
+      <a href="networth.html" class="">Net Worth</a>
+      <a href="graphs.html" class="">Graphs</a>
+      <a href="regulations.html" class="">Regulations</a>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="grid two">
+    <div class="card">
+      <div class="kpi">
+        <div>
+          <div class="label">Announcements</div>
+          <div class="small" id="annUpdated"></div>
+        </div>
+        <div class="badge">Auto-refresh</div>
+      </div>
+
+      <div id="announcements">Loading…</div>
+    </div>
+
+    <div class="card">
+      <div class="kpi">
+        <div>
+          <div class="label">About</div>
+          <div class="small">Centralized records for the economics simulation.</div>
+        </div>
+        <div class="badge">Official</div>
+      </div>
+
+      <p class="page-sub">
+        This portal publishes official announcements, the company registry, and net worth standings.
+        Data is maintained by the government (Gullickson) via Google Sheets.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const ANNOUNCEMENTS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=870677309&single=true&output=csv";
+    const REFRESH_MS = 15000;
+
+    let lastRequestId = 0;
+
+    function parseCSVRows(text) {
+      const lines = text.trim().split(/\r?\n/);
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const [date, title, body] = lines[i].split(",");
+        if (!date && !title && !body) continue;
+        rows.push({
+          date: (date || "").trim(),
+          title: (title || "").trim(),
+          body: (body || "").trim(),
+        });
+      }
+      return rows;
+    }
+
+    async function loadAnnouncements() {
+      const requestId = ++lastRequestId;
+      const box = document.getElementById("announcements");
+      const updated = document.getElementById("annUpdated");
+
+      try {
+        const res = await fetch(ANNOUNCEMENTS_CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+        const text = await res.text();
+
+        if (requestId !== lastRequestId) return;
+
+        const rows = parseCSVRows(text);
+        rows.sort((a, b) => b.date.localeCompare(a.date));
+
+        if (rows.length === 0) {
+          box.innerHTML = "<div class='small'>No announcements yet.</div>";
+        } else {
+          box.innerHTML = rows.map(r => `
+            <div class="notice">
+              <div class="date">${r.date}</div>
+              <div class="title">${r.title}</div>
+              <div class="body">${r.body}</div>
+            </div>
+          `).join("");
+        }
+
+        updated.textContent = "Updated: " + new Date().toLocaleString();
+      } catch (e) {
+        if (requestId !== lastRequestId) return;
+        box.innerHTML = `<div class="error">Failed to load announcements: ${e.message}</div>`;
+      }
+    }
+
+    loadAnnouncements();
+    setInterval(loadAnnouncements, REFRESH_MS);
+  </script>
+
+  <div class="footer">Maintained by Government • Data updates from Google Sheets</div>
+</div>
+
+</body>
+</html>
