@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <title>Net Worth Graphs</title>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>Government Transparency Portal</h1>
+        <div class="sub">Economics Simulation • Official Records</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
+
+    <div class="nav">
+      <a href="home.html" class="">Home</a>
+      <a href="companies.html" class="">Companies</a>
+      <a href="networth.html" class="">Net Worth</a>
+      <a href="graphs.html" class="active">Graphs</a>
+      <a href="regulations.html" class="">Regulations</a>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <div class="kpi">
+      <div>
+        <div class="label">Net Worth Over Time</div>
+        <div class="small" id="updated">Loading…</div>
+      </div>
+      <div class="badge">History</div>
+    </div>
+
+    <div class="controls">
+      <div class="small">Team:</div>
+      <select id="teamSelect"></select>
+      <div class="small" id="status"></div>
+    </div>
+
+    <div class="spacer"></div>
+    <canvas id="chart" width="900" height="420"></canvas>
+    <div class="error" id="err"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=275847336&single=true&output=csv";
+    let chart = null;
+    let allRows = [];
+    let lastRequestId = 0;
+
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/);
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const [date, team, value] = lines[i].split(",");
+        if (!date || !team) continue;
+        rows.push({ date: date.trim(), team: team.trim(), value: Number(value) });
+      }
+      return rows;
+    }
+
+    function uniqueTeams(rows) {
+      return Array.from(new Set(rows.map(r => r.team))).sort();
+    }
+
+    function rowsForTeam(rows, team) {
+      return rows
+        .filter(r => r.team === team)
+        .sort((a,b) => a.date.localeCompare(b.date));
+    }
+
+    function render(team) {
+      const rows = rowsForTeam(allRows, team);
+      const labels = rows.map(r => r.date);
+      const data = rows.map(r => r.value);
+
+      document.getElementById("status").textContent = rows.length ? `(${rows.length} points)` : "(no data)";
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(document.getElementById("chart"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: team,
+            data,
+            tension: 0.2,
+            fill: false
+          }]
+        },
+        options: {
+          responsive: true
+        }
+      });
+    }
+
+    async function loadGraph() {
+      const requestId = ++lastRequestId;
+      const err = document.getElementById("err");
+      err.textContent = "";
+
+      try {
+        const res = await fetch(CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+        const text = await res.text();
+
+        if (requestId !== lastRequestId) return;
+
+        allRows = parseCSV(text);
+        const teams = uniqueTeams(allRows);
+
+        const sel = document.getElementById("teamSelect");
+        sel.innerHTML = teams.map(t => `<option value="${t}">${t}</option>`).join("");
+        sel.onchange = () => render(sel.value);
+
+        if (teams.length) render(teams[0]);
+        document.getElementById("updated").textContent = "Updated: " + new Date().toLocaleString();
+      } catch (e) {
+        if (requestId !== lastRequestId) return;
+        err.textContent = "Failed to load graph data: " + e.message;
+      }
+    }
+
+    loadGraph();
+  </script>
+
+  <div class="footer">Maintained by Government • Data updates from Google Sheets</div>
+</div>
+
+</body>
+</html>
