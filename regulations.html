@@ -24,6 +24,7 @@
       <a href="networth.html" class="">Net Worth</a>
       <a href="graphs.html" class="">Graphs</a>
       <a href="regulations.html" class="active">Regulations</a>
+       <a href="trade.html" class="">Trade</a>
     </div>
   </div>
 </div>
@@ -39,11 +40,52 @@
     </div>
 
     <div class="spacer"></div>
-    <div class="small">No regulations posted yet.</div>
+
+<div id="rules">Loading…</div>
+<div class="error" id="err"></div>
+<div class="small" id="updated"></div>
   </div>
 
   <div class="footer">Maintained by Government • Data updates from Google Sheets</div>
 </div>
+<script>
+  const REGULATIONS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=533557330&single=true&output=csv";
 
+  async function loadRules() {
+    const box = document.getElementById("rules");
+    const updated = document.getElementById("updated");
+    const err = document.getElementById("err");
+    err.textContent = "";
+
+    try {
+      const res = await fetch(REGULATIONS_CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+      const text = await res.text();
+
+      const lines = text.trim().split(/\r?\n/);
+
+      if (lines.length < 2) {
+        box.innerHTML = "<div class='small'>page for the rules :).</div>";
+        return;
+      }
+
+      const fullText = lines.slice(1).join("\n");
+
+      box.innerHTML = `
+        <div class="notice">
+          <div class="title">Rules & Regulations (2026)</div>
+          <div class="body">${fullText.replace(/\n/g, "<br>")}</div>
+        </div>
+      `;
+
+      updated.textContent = "Updated: " + new Date().toLocaleString();
+
+    } catch (e) {
+      box.innerHTML = "";
+      err.textContent = "Failed to load regulations: " + e.message;
+    }
+  }
+
+  loadRules();
+</script>
 </body>
 </html>

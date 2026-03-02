@@ -24,6 +24,7 @@
       <a href="networth.html" class="">Net Worth</a>
       <a href="graphs.html" class="active">Graphs</a>
       <a href="regulations.html" class="">Regulations</a>
+       <a href="trade.html" class="">Trade</a>
     </div>
   </div>
 </div>
@@ -82,7 +83,7 @@
       const labels = rows.map(r => r.date);
       const data = rows.map(r => r.value);
 
-      document.getElementById("status").textContent = rows.length ? `(${rows.length} points)` : "(no data)";
+      document.getElementById("status").textContent = rows.length ? `(${rows.length} data points)` : "(no data)";
 
       if (chart) chart.destroy();
 
@@ -91,11 +92,13 @@
         data: {
           labels,
           datasets: [{
-            label: team,
-            data,
-            tension: 0.2,
-            fill: false
-          }]
+  label: team,
+  data,
+  tension: 0,          
+  pointRadius: 3,      
+  pointHoverRadius: 6,
+  fill: false
+}]
         },
         options: {
           responsive: true

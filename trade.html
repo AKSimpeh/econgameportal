@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <title>Trade</title>
+</head>
+<body>
+    <div class="topbar">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>Government Transparency Portal</h1>
+        <div class="sub">Economics Simulation • Official Records</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
+
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a href="companies.html">Companies</a>
+      <a href="networth.html">Net Worth</a>
+      <a href="graphs.html">Graphs</a>
+      <a href="regulations.html">Regulations</a>
+      <a href="trade.html" class="active">Trade</a>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="container">
+    <div class="card">
+      <div class="kpi">
+        <div>
+          <div class="label">Stock Trading</div>
+          <div class="small">Invest points into real tickers (value tracks price changes).</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <input id="team" placeholder="Team (exact name)">
+        <input id="pin" placeholder="PIN" type="password">
+        <select id="action">
+          <option>BUY</option>
+          <option>SELL</option>
+        </select>
+        <input id="ticker" placeholder="Ticker (AAPL)">
+        <input id="points" placeholder="Points" type="number" min="1">
+        <button id="submit">Submit Trade</button>
+      </div>
+
+      <div class="spacer"></div>
+      <div id="out" class="small"></div>
+      <div id="err" class="error"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzSkygwBgyxp5B1k9g8fz2nFmBLrWBnRiksSPS243k_jamUz9JuzsvBxud3m3hf0QqG/exec";
+
+    document.getElementById("submit").onclick = async () => {
+      const out = document.getElementById("out");
+      const err = document.getElementById("err");
+      out.textContent = "";
+      err.textContent = "";
+
+      const payload = {
+        team: document.getElementById("team").value.trim(),
+        pin: document.getElementById("pin").value.trim(),
+        action: document.getElementById("action").value.trim(),
+        ticker: document.getElementById("ticker").value.trim(),
+        points: Number(document.getElementById("points").value)
+      };
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          err.textContent = data.error || "Trade failed";
+          return;
+        }
+
+        if (data.action === "SELL") {
+          out.textContent =
+            `APPROVED: SOLD ${payload.points} pts of ${data.ticker} @ ${Number(data.price).toFixed(2)} → payout ${Number(data.payout).toFixed(2)} pts. Cash: ${Number(data.cash).toFixed(2)}`;
+        } else {
+          out.textContent =
+            `APPROVED: BOUGHT ${payload.points} pts of ${data.ticker} @ ${Number(data.price).toFixed(2)}. Cash: ${Number(data.cash).toFixed(2)}`;
+        }
+
+      } catch (e) {
+        err.textContent = "Error: " + e.message;
+      }
+    };
+  </script>
+    <div class="footer">Maintained by Government • Data updates from Google Sheets</div>
+</div>
+</body>
+</html>
