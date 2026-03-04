@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <title>Court Rulings</title>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>Government Transparency Portal</h1>
+        <div class="sub">Economics Simulation • Official Records</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
+
+    <div class="nav">
+      <a href="home.html">Home</a>
+
+      <div class="dropdown">
+        <button class="dropbtn">Markets ▾</button>
+        <div class="dropdown-content">
+          <a href="companies.html">Companies</a>
+          <a href="networth.html">Net Worth</a>
+          <a href="graphs.html">Graphs</a>
+          <a href="trade.html">Trade</a>
+          <a href="investments.html">Investments</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Government ▾</button>
+        <div class="dropdown-content">
+          <a href="regulations.html">Regulations</a>
+          <a href="positions.html">Gov Positions</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Judiciary ▾</button>
+        <div class="dropdown-content">
+          <a href="rulings.html">Court Rulings</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <div class="kpi">
+      <div>
+        <div class="page-title">Court Rulings</div>
+        <div class="small" id="rUpdated"></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div id="rulingsBox" class="small">Loading…</div>
+  </div>
+
+  <div class="footer">Maintained by Government • Data updates from Google Sheets</div>
+</div>
+
+<script>
+  const RULINGS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=237690816&single=true&output=csv";
+  const REFRESH_MS = 15000;
+
+  let lastRequestId = 0;
+
+  // CSV parser that supports quoted fields (so commas inside paragraphs are OK)
+  function parseCSV(text) {
+    const rows = [];
+    let row = [];
+    let cur = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (ch === '"' ) {
+        if (inQuotes && next === '"') { cur += '"'; i++; }   // escaped quote
+        else inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        row.push(cur);
+        cur = "";
+      } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+        if (ch === '\r' && next === '\n') i++;
+        row.push(cur);
+        cur = "";
+        // avoid pushing empty trailing lines
+        if (row.some(v => String(v).trim() !== "")) rows.push(row);
+        row = [];
+      } else {
+        cur += ch;
+      }
+    }
+    // last cell
+    row.push(cur);
+    if (row.some(v => String(v).trim() !== "")) rows.push(row);
+
+    return rows;
+  }
+
+  async function loadRulings() {
+    const requestId = ++lastRequestId;
+    const box = document.getElementById("rulingsBox");
+    const updated = document.getElementById("rUpdated");
+
+    try {
+      const res = await fetch(RULINGS_CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+      const text = await res.text();
+      if (requestId !== lastRequestId) return;
+
+      const all = parseCSV(text);
+      if (all.length <= 1) {
+        box.innerHTML = `<div class="small">No rulings posted yet.</div>`;
+        updated.textContent = "Updated: " + new Date().toLocaleString();
+        return;
+      }
+
+      // headers: Date, Title, Body
+      const rows = all.slice(1)
+        .map(r => ({
+          date: (r[0] || "").trim(),
+          title: (r[1] || "").trim(),
+          body: (r[2] || "").trim()
+        }))
+        .filter(r => r.date || r.title || r.body);
+
+      // newest first if date is YYYY-MM-DD (or similar)
+      rows.sort((a,b) => (b.date || "").localeCompare(a.date || ""));
+
+      box.innerHTML = rows.map(r => `
+        <div class="notice">
+          <div class="date">${escapeHTML(r.date)}</div>
+          <div class="title">${escapeHTML(r.title || "Court Ruling")}</div>
+          <div class="body">${escapeHTML(r.body || "")}</div>
+        </div>
+      `).join("");
+
+      updated.textContent = "Updated: " + new Date().toLocaleString();
+
+    } catch (e) {
+      if (requestId !== lastRequestId) return;
+      box.innerHTML = `<div class="error">Failed to load rulings: ${e.message}</div>`;
+    }
+  }
+
+  function escapeHTML(s){
+    return String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  loadRulings();
+  setInterval(loadRulings, REFRESH_MS);
+</script>
+
+
+</body>
+</html>

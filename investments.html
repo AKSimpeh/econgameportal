@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <title>Investments</title>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>Government Transparency Portal</h1>
+        <div class="sub">Economics Simulation • Official Records</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
+
+    <div class="nav">
+      <a href="graphs.html">Home</a>
+
+      <div class="dropdown">
+        <button class="dropbtn">Markets ▾</button>
+        <div class="dropdown-content">
+          <a href="companies.html">Companies</a>
+          <a href="networth.html">Net Worth</a>
+          <a href="graphs.html">Graphs</a>
+          <a href="trade.html">Trade</a>
+          <a href="investments.html">Investments</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Government ▾</button>
+        <div class="dropdown-content">
+          <a href="regulations.html">Regulations</a>
+          <a href="positions.html">Gov Positions</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Judiciary ▾</button>
+        <div class="dropdown-content">
+          <a href="rulings.html">Court Rulings</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <div class="kpi">
+      <div>
+        <div class="label">Investments</div>
+        <div class="small">Log in to view your current portfolio lots.</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <input id="team" placeholder="Team (exact name)">
+      <input id="pin" placeholder="PIN" type="password">
+      <button id="load">Load Portfolio</button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div id="summary" class="small"></div>
+    <div id="tableWrap"></div>
+    <div id="err" class="error"></div>
+  </div>
+
+  <div class="footer">Maintained by Government • Data updates from Google Sheets</div>
+</div>
+
+<script>
+  const API_URL = "https://script.google.com/macros/s/AKfycbyBhNWtBn6-0-ypz-U3BoXqWvMGDQyw8YeyZYqfUhuTpBXYB2AyQHsJcBYGKZLYSyQx/exec";
+
+  function fmt(x, digits = 2) {
+    const n = Number(x);
+    return Number.isFinite(n) ? n.toFixed(digits) : String(x ?? "");
+  }
+
+  document.getElementById("load").onclick = async () => {
+    const team = document.getElementById("team").value.trim();
+    const pin  = document.getElementById("pin").value.trim();
+
+    const err = document.getElementById("err");
+    const summary = document.getElementById("summary");
+    const wrap = document.getElementById("tableWrap");
+
+    err.textContent = "";
+    summary.textContent = "";
+    wrap.innerHTML = "";
+
+    if (!team || !pin) {
+      err.textContent = "Enter team + PIN.";
+      return;
+    }
+
+    const payload = {
+      team,
+      pin,
+      action: "PORTFOLIO",
+      ticker: "NA",
+      points: 1
+    };
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+
+      const raw = await res.text();
+      let data;
+      try { data = JSON.parse(raw); }
+      catch { throw new Error("Server returned non-JSON: " + raw.slice(0, 120)); }
+
+      if (!data.ok) {
+        err.textContent = data.error || "Failed";
+        return;
+      }
+
+      const p = data.portfolio;
+      const lots = (p && p.lots) ? p.lots : [];
+      summary.textContent = `NetWorth (cash): ${fmt(p.cash, 2)} points • Open lots: ${lots.length}`;
+
+      const rows = lots.map(l => {
+        const date = l.entryDate ? new Date(l.entryDate).toLocaleDateString() : "";
+        return `
+          <tr>
+            <td>${l.ticker}</td>
+            <td>${fmt(l.investedPoints, 0)}</td>
+            <td>${fmt(l.entryPrice, 2)}</td>
+            <td>${fmt(l.currentPrice, 2)}</td>
+            <td>${fmt(l.currentValue, 2)}</td>
+            <td>${fmt(l.pnl, 2)}</td>
+            <td>${date}</td>
+          </tr>
+        `;
+      }).join("");
+
+      wrap.innerHTML = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Ticker</th>
+              <th>Invested (pts)</th>
+              <th>Entry Price</th>
+              <th>Current Price</th>
+              <th>Current Value (pts)</th>
+              <th>P/L (pts)</th>
+              <th>Entry Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || `<tr><td colspan="7" class="small">No open positions.</td></tr>`}
+          </tbody>
+        </table>
+      `;
+
+    } catch (e) {
+      err.textContent = "Error: " + e.message;
+    }
+  };
+</script>
+
+</body>
+</html>

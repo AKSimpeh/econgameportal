@@ -18,12 +18,33 @@
     </div>
 
     <div class="nav">
-      <a href="home.html">Home</a>
-      <a href="companies.html">Companies</a>
-      <a href="networth.html">Net Worth</a>
-      <a href="graphs.html">Graphs</a>
-      <a href="regulations.html">Regulations</a>
-      <a href="trade.html" class="active">Trade</a>
+      <a href="graphs.html">Home</a>
+
+      <div class="dropdown">
+        <button class="dropbtn">Markets ▾</button>
+        <div class="dropdown-content">
+          <a href="companies.html">Companies</a>
+          <a href="networth.html">Net Worth</a>
+          <a href="graphs.html">Graphs</a>
+          <a href="trade.html">Trade</a>
+          <a href="investments.html">Investments</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Government ▾</button>
+        <div class="dropdown-content">
+          <a href="regulations.html">Regulations</a>
+          <a href="positions.html">Gov Positions</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Judiciary ▾</button>
+        <div class="dropdown-content">
+          <a href="rulings.html">Court Rulings</a>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -57,7 +78,7 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbzSkygwBgyxp5B1k9g8fz2nFmBLrWBnRiksSPS243k_jamUz9JuzsvBxud3m3hf0QqG/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyBhNWtBn6-0-ypz-U3BoXqWvMGDQyw8YeyZYqfUhuTpBXYB2AyQHsJcBYGKZLYSyQx/exec";
 
     document.getElementById("submit").onclick = async () => {
       const out = document.getElementById("out");

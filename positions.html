@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <title>Gov Positions</title>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>Government Transparency Portal</h1>
+        <div class="sub">Economics Simulation • Official Records</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
+
+    <div class="nav">
+      <a href="home.html">Home</a>
+
+      <div class="dropdown">
+        <button class="dropbtn">Markets ▾</button>
+        <div class="dropdown-content">
+          <a href="companies.html">Companies</a>
+          <a href="networth.html">Net Worth</a>
+          <a href="graphs.html">Graphs</a>
+          <a href="trade.html">Trade</a>
+          <a href="investments.html">Investments</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Government ▾</button>
+        <div class="dropdown-content">
+          <a href="regulations.html">Regulations</a>
+          <a href="positions.html">Gov Positions</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Judiciary ▾</button>
+        <div class="dropdown-content">
+          <a href="rulings.html">Court Rulings</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <div class="kpi">
+      <div>
+        <div class="page-title">Government Positions</div>
+        <div class="small" id="posUpdated"></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div id="positionsBox" class="small">Loading…</div>
+  </div>
+
+  <div class="footer">Maintained by Government • Data updates from Google Sheets</div>
+</div>
+
+<script>
+  const POSITIONS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTireKS1uTu8KNy29DCoZmXRDSDF10rIxF4cKRUFW12Lr9U_YHQRA9MH-vuK7M1VD-XjiTrnxE3oU4Y/pub?gid=995832816&single=true&output=csv";
+  const REFRESH_MS = 15000;
+
+  let lastRequestId = 0;
+
+  function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(",");
+      if (cols.every(c => !c || !c.trim())) continue;
+      rows.push(cols.map(c => (c || "").trim()));
+    }
+    return rows;
+  }
+
+  async function loadPositions() {
+    const requestId = ++lastRequestId;
+    const box = document.getElementById("positionsBox");
+    const updated = document.getElementById("posUpdated");
+
+    try {
+      const res = await fetch(POSITIONS_CSV_URL + "&_=" + Date.now(), { cache: "no-store" });
+      const text = await res.text();
+      if (requestId !== lastRequestId) return;
+
+      const rows = parseCSV(text);
+
+      if (rows.length === 0) {
+        box.innerHTML = `<div class="small">No positions posted yet.</div>`;
+      } else {
+        // Expect: Date, Role, Person, Company, Notes
+        box.innerHTML = `
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Role</th>
+                <th>Person</th>
+                <th>Company</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr>
+                  <td>${r[0] || ""}</td>
+                  <td>${r[1] || ""}</td>
+                  <td>${r[2] || ""}</td>
+                  <td>${r[3] || ""}</td>
+                  <td>${r[4] || ""}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      updated.textContent = "Updated: " + new Date().toLocaleString();
+    } catch (e) {
+      if (requestId !== lastRequestId) return;
+      box.innerHTML = `<div class="error">Failed to load positions: ${e.message}</div>`;
+    }
+  }
+
+  loadPositions();
+  setInterval(loadPositions, REFRESH_MS);
+</script>
+
+</body>
+</html>
