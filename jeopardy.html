@@ -1,0 +1,1226 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <title>Jeopardy – Government Portal</title>
+  <style>
+    /* ── Jeopardy — board colors only, everything else inherits from styles.css ── */
+    :root {
+      --jboard: #0b2e6b;   /* matches --nav */
+      --jboard2: #0a2556;  /* matches --nav2 */
+      --jgold: #f5c518;
+      --jgold2: #c9a000;
+      --jdark: #071d45;
+    }
+
+    /* ── Setup / shared layout ── */
+    .j-setup { max-width: 860px; margin: 24px 0; }
+    .j-setup h2 { font-size: 20px; font-weight: 750; color: var(--text); margin: 0 0 4px; }
+    .j-setup .page-sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+
+    .j-section-title {
+      font-size: 12px; font-weight: 700; letter-spacing: .08em;
+      color: var(--muted); text-transform: uppercase; margin: 20px 0 8px;
+    }
+
+    /* inputs — mirror site's select style */
+    .j-input {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      font: inherit;
+      font-size: 14px;
+      color: var(--text);
+    }
+    .j-input:focus { outline: 2px solid var(--nav); border-color: transparent; }
+
+    .j-cat-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+    .j-cat-row .j-input { flex: 1; min-width: 160px; }
+
+    .j-q-block {
+      background: #fff; border: 1px solid var(--line);
+      border-radius: 14px; padding: 14px; margin-bottom: 10px;
+    }
+    .j-q-block .q-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .j-q-block .q-header .pts {
+      font-size: 15px; font-weight: 750; color: var(--nav); min-width: 44px;
+    }
+    .j-q-block textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--line);
+      border-radius: 8px; font: inherit; font-size: 13px; resize: vertical; min-height: 52px;
+    }
+    .j-q-block textarea:focus { outline: 2px solid var(--nav); border-color: transparent; }
+    .j-q-block .field-label {
+      font-size: 11px; font-weight: 700; letter-spacing: .08em;
+      color: var(--muted); text-transform: uppercase; display: block; margin: 8px 0 3px;
+    }
+
+    .j-q-block .img-preview { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+    .j-q-block .img-preview img {
+      max-height: 90px; max-width: 180px; border-radius: 6px;
+      border: 1px solid var(--line); object-fit: cover;
+    }
+    .j-q-block .img-preview button {
+      font-size: 12px; padding: 4px 8px; border: 1px solid #ccc;
+      border-radius: 6px; background: #fff; cursor: pointer; color: #b00020; font: inherit;
+    }
+
+    input[type="file"] { display: none; }
+    .btn-upload {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border: 1px dashed var(--nav); border-radius: 8px;
+      background: var(--badge); color: #1e3a8a; font: inherit; font-size: 12px; cursor: pointer;
+    }
+    .btn-upload:hover { background: #dde5ff; }
+
+    /* Site-style buttons */
+    .btn-primary {
+      background: linear-gradient(0deg, var(--nav2), var(--nav));
+      color: #fff; border: none; padding: 10px 22px; border-radius: 10px;
+      font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn-primary:hover { opacity: .88; }
+    .btn-primary:disabled { opacity: .5; cursor: default; }
+
+    .btn-secondary {
+      background: #fff; color: var(--nav); border: 1px solid var(--nav);
+      padding: 9px 18px; border-radius: 10px; font: inherit; font-size: 14px; cursor: pointer;
+    }
+    .btn-secondary:hover { background: var(--badge); }
+
+    .btn-danger {
+      background: #fff0f0; color: #b00020; border: 1px solid #f5c6c6;
+      padding: 7px 13px; border-radius: 8px; font: inherit; font-size: 13px; cursor: pointer;
+    }
+    .btn-danger:hover { background: #ffe0e0; }
+
+    .btn-outline-sm {
+      background: #fff; color: var(--muted); border: 1px solid var(--line);
+      padding: 6px 12px; border-radius: 8px; font: inherit; font-size: 12px; cursor: pointer;
+    }
+    .btn-outline-sm:hover { border-color: var(--nav); color: var(--nav); }
+
+    /* Player setup row */
+    .j-player-setup { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .j-player-setup .j-input { flex: 1; }
+
+    /* Tab strip — mirrors nav pill style */
+    .j-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .j-tab {
+      padding: 7px 14px; border-radius: 10px; border: 1px solid var(--line);
+      background: #fff; color: var(--text); font: inherit; font-size: 13px; cursor: pointer;
+    }
+    .j-tab:hover { background: var(--badge); border-color: var(--nav); }
+    .j-tab.active { background: var(--nav); color: #fff; border-color: var(--nav); }
+
+    .j-cat-panel { display: none; }
+    .j-cat-panel.active { display: block; }
+
+    .add-cat-btn {
+      background: var(--badge); color: var(--nav); border: 1px dashed var(--nav);
+      border-radius: 10px; padding: 8px 18px; font: inherit; font-size: 13px;
+      cursor: pointer; margin-top: 6px;
+    }
+    .add-cat-btn:hover { background: #dde5ff; }
+
+    .remove-cat-btn {
+      background: #fff0f0; color: #b00020; border: 1px solid #f5c6c6;
+      padding: 6px 11px; border-radius: 8px; font: inherit; font-size: 12px; cursor: pointer;
+    }
+
+    /* ── Board ── */
+    .j-board-wrap { padding: 20px 0; }
+
+    .j-score-bar {
+      display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;
+    }
+    .j-score-bar h2 { font-size: 20px; font-weight: 750; margin: 0; flex: 1; color: var(--text); }
+
+    .j-player-scores { display: flex; gap: 8px; flex-wrap: wrap; }
+    .j-player-chip {
+      background: var(--nav); color: #fff; border-radius: 999px;
+      padding: 6px 16px; font-size: 14px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; user-select: none; transition: background .1s;
+      border: 2px solid transparent;
+    }
+    .j-player-chip:hover { background: var(--nav2); }
+    .j-player-chip.active-player {
+      background: #fff; color: var(--nav);
+      border-color: var(--nav); font-weight: 750;
+    }
+    .j-player-chip .chip-name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .j-player-chip .chip-score { font-weight: 750; }
+
+    .j-board {
+      display: grid; gap: 5px; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 4px 24px rgba(11,46,107,.2);
+    }
+    .j-col-header {
+      background: var(--jboard); color: #fff; text-align: center;
+      padding: 14px 8px; font-size: 13px; font-weight: 750;
+      letter-spacing: .06em; text-transform: uppercase; line-height: 1.2;
+      border: 2px solid var(--jdark);
+    }
+    .j-cell {
+      background: var(--jboard); color: var(--jgold); text-align: center;
+      padding: 18px 8px; font-size: 22px; font-weight: 900;
+      cursor: pointer; border: 2px solid var(--jdark);
+      transition: background .12s, transform .1s;
+      min-height: 70px; display: flex; align-items: center;
+      justify-content: center; user-select: none; letter-spacing: .02em;
+    }
+    .j-cell:hover:not(.used) { background: #0d3a85; transform: scale(1.02); z-index: 2; }
+    .j-cell.used { background: var(--jdark); color: transparent; cursor: default; }
+    .j-cell.daily-double { background: #0d3060; color: var(--jgold); }
+
+    /* DD indicator badge */
+    .dd-badge {
+      display: inline-block; background: var(--jgold); color: var(--jdark);
+      font-size: 10px; font-weight: 800; letter-spacing: .08em;
+      padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-top: 4px;
+    }
+
+    /* ── Question modal — keeps the game feel but more refined ── */
+    .j-modal-backdrop {
+      position: fixed; inset: 0; background: rgba(7,29,69,.88);
+      z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .j-modal {
+      background: var(--jboard); border: 3px solid var(--jgold);
+      border-radius: 16px; max-width: 660px; width: 100%;
+      padding: 32px 28px 24px; color: #fff;
+      box-shadow: 0 16px 48px rgba(0,0,0,.5); animation: modalIn .2s ease;
+    }
+    @keyframes modalIn {
+      from { transform: scale(.9); opacity: 0; }
+      to   { transform: scale(1);  opacity: 1; }
+    }
+    .j-modal .pts-banner {
+      font-size: 2.6rem; font-weight: 900; color: var(--jgold);
+      text-align: center; margin-bottom: 10px; letter-spacing: .04em;
+    }
+    .j-modal .q-text {
+      font-size: 1.35rem; font-weight: 500; text-align: center;
+      line-height: 1.4; margin-bottom: 14px;
+    }
+    .j-modal .q-image { text-align: center; margin-bottom: 14px; }
+    .j-modal .q-image img {
+      max-width: 100%; max-height: 260px; border-radius: 8px;
+      border: 2px solid var(--jgold); object-fit: contain;
+    }
+    .j-modal .answer-reveal {
+      background: rgba(255,255,255,.07); border-radius: 10px;
+      padding: 12px 16px; font-size: 1.1rem; margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,.18);
+    }
+    .j-modal .answer-reveal .alabel {
+      font-size: 10px; letter-spacing: .12em; color: rgba(255,255,255,.5);
+      text-transform: uppercase; margin-bottom: 4px; font-weight: 700;
+    }
+    .j-modal .modal-actions {
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+    }
+    .j-modal .btn-correct {
+      background: #16a34a; color: #fff; border: none;
+      padding: 10px 20px; border-radius: 8px; font: inherit; font-size: 14px;
+      font-weight: 700; cursor: pointer;
+    }
+    .j-modal .btn-correct:hover { background: #15803d; }
+    .j-modal .btn-wrong {
+      background: #dc2626; color: #fff; border: none;
+      padding: 10px 20px; border-radius: 8px; font: inherit; font-size: 14px;
+      font-weight: 700; cursor: pointer;
+    }
+    .j-modal .btn-wrong:hover { background: #b91c1c; }
+    .j-modal .btn-close {
+      background: rgba(255,255,255,.1); color: #fff;
+      border: 1px solid rgba(255,255,255,.2); padding: 10px 16px;
+      border-radius: 8px; font: inherit; font-size: 14px; cursor: pointer;
+    }
+    .j-modal .btn-close:hover { background: rgba(255,255,255,.18); }
+
+    .j-modal .dd-banner {
+      font-size: 1.6rem; font-weight: 900; color: var(--jgold);
+      text-align: center; margin-bottom: 4px; letter-spacing: .08em; text-transform: uppercase;
+    }
+    .j-modal input.wager-input {
+      width: 100%; padding: 10px 14px; border-radius: 8px;
+      border: 2px solid var(--jgold); background: rgba(255,255,255,.08);
+      color: #fff; font: inherit; font-size: 1.3rem; font-weight: 700;
+      text-align: center; margin: 10px 0;
+    }
+    .j-modal .score-adj { font-size: .95rem; color: rgba(255,255,255,.75); text-align: center; margin-bottom: 10px; }
+
+    /* ── Presets bar — card style matching site ── */
+    .j-presets-bar {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 16px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.04);
+      margin-bottom: 20px;
+    }
+    .j-presets-bar .bar-top {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+    }
+    .j-presets-bar .bar-top .bar-title {
+      font-size: 12px; font-weight: 700; letter-spacing: .08em;
+      color: var(--muted); text-transform: uppercase; margin: 0;
+    }
+    .preset-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px;
+    }
+    .preset-card {
+      background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+      padding: 11px 13px; cursor: pointer; position: relative;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .preset-card:hover { border-color: var(--nav); box-shadow: 0 2px 8px rgba(11,46,107,.1); }
+    .preset-card .pc-name {
+      font-size: 14px; font-weight: 750; margin-bottom: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 20px;
+    }
+    .preset-card .pc-meta { font-size: 11px; color: var(--muted); }
+    .preset-card .pc-del {
+      position: absolute; top: 8px; right: 8px; background: none; border: none;
+      color: #ccc; font-size: 13px; cursor: pointer; padding: 1px 4px;
+      border-radius: 4px; line-height: 1;
+    }
+    .preset-card .pc-del:hover { color: #b00020; background: #fff0f0; }
+    .preset-empty { color: var(--muted); font-size: 13px; padding: 4px 0; }
+
+    .save-preset-row {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+    }
+    .save-preset-row .j-input { flex: 1; min-width: 180px; }
+    .btn-save-preset {
+      background: linear-gradient(0deg, var(--nav2), var(--nav)); color: #fff;
+      border: none; padding: 8px 16px; border-radius: 10px; font: inherit;
+      font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .btn-save-preset:hover { opacity: .88; }
+
+    /* Game over */
+    .game-over-banner { text-align: center; padding: 28px; }
+    .game-over-banner h2 { font-size: 24px; font-weight: 750; color: var(--text); margin: 0 0 6px; }
+    .game-over-banner .winner { font-size: 15px; color: var(--muted); margin: 0 0 20px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>Government Transparency Portal</h1>
+        <div class="sub">Economics Simulation • Official Records</div>
+      </div>
+      <div class="badge">Live</div>
+    </div>
+
+    <div class="nav">
+      <a href="home.html">Home</a>
+
+      <div class="dropdown">
+        <button class="dropbtn">Markets ▾</button>
+        <div class="dropdown-content">
+          <a href="companies.html">Companies</a>
+          <a href="networth.html">Net Worth</a>
+          <a href="graphs.html">Graphs</a>
+          <a href="trade.html">Trade</a>
+          <a href="investments.html">Investments</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Government ▾</button>
+        <div class="dropdown-content">
+          <a href="regulations.html">Regulations</a>
+          <a href="positions.html">Gov Positions</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Judiciary ▾</button>
+        <div class="dropdown-content">
+          <a href="rulings.html">Court Rulings</a>
+        </div>
+      </div>
+
+      <a href="jeopardy.html" class="active">Jeopardy</a>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div id="jeopardy-app">
+    <!-- Rendered by JS -->
+  </div>
+  <div class="footer">Jeopardy Game • Government Transparency Portal</div>
+</div>
+
+<script>
+// ════════════════════════════════
+//  PRESETS — JSONBin.io cloud storage
+//  • Anyone can read/load presets
+//  • Save/delete requires teacher password (hash stored in the bin itself)
+// ════════════════════════════════
+
+const JSONBIN_BASE   = 'https://api.jsonbin.io/v3';
+const LS_BIN_ID      = 'jeopardy_bin_id';
+const LS_API_KEY     = 'jeopardy_api_key';
+const LS_AUTHED      = 'jeopardy_authed';  // session flag only
+
+async function hashPw(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw + 'jeopardy_salt'));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── Cloud state ─────────────────────────────────────────────────────────────
+let cloudPresets    = [];
+let cloudPwHash     = null;   // teacher password hash stored in the bin
+let presetsLoading  = true;
+let presetsError    = null;
+let isTeacher       = false;
+
+function getBinId()  { return localStorage.getItem(LS_BIN_ID) || ''; }
+function getApiKey() { return localStorage.getItem(LS_API_KEY) || ''; }
+
+// ── Fetch from JSONBin ───────────────────────────────────────────────────────
+async function fetchCloudPresets() {
+  presetsLoading = true;
+  presetsError = null;
+  renderPresetsSection();
+
+  const binId  = getBinId();
+  const apiKey = getApiKey();
+  if (!binId || !apiKey) {
+    presetsLoading = false;
+    presetsError = 'not_configured';
+    renderPresetsSection();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${JSONBIN_BASE}/b/${binId}/latest`, {
+      headers: { 'X-Master-Key': apiKey }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    cloudPresets = Array.isArray(data.record?.presets) ? data.record.presets : [];
+    cloudPwHash  = data.record?.pwHash || null;
+    presetsLoading = false;
+    renderPresetsSection();
+  } catch(e) {
+    presetsLoading = false;
+    presetsError = e.message;
+    renderPresetsSection();
+  }
+}
+
+// ── Write back to JSONBin (always include pwHash) ───────────────────────────
+async function pushCloudData(presets, pwHash) {
+  const binId  = getBinId();
+  const apiKey = getApiKey();
+  const res = await fetch(`${JSONBIN_BASE}/b/${binId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': apiKey },
+    body: JSON.stringify({ presets, pwHash })
+  });
+  if (!res.ok) throw new Error(`Save failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── Teacher auth ─────────────────────────────────────────────────────────────
+function checkTeacherSession() {
+  isTeacher = sessionStorage.getItem(LS_AUTHED) === '1';
+}
+
+async function teacherLogin(pw) {
+  const hash = await hashPw(pw);
+
+  if (!cloudPwHash) {
+    // No password set yet in the cloud — set it now
+    cloudPwHash = hash;
+    await pushCloudData(cloudPresets, cloudPwHash);
+    sessionStorage.setItem(LS_AUTHED, '1');
+    isTeacher = true;
+    return true;
+  }
+
+  if (hash === cloudPwHash) {
+    sessionStorage.setItem(LS_AUTHED, '1');
+    isTeacher = true;
+    return true;
+  }
+  return false;
+}
+
+function teacherLogout() {
+  sessionStorage.removeItem(LS_AUTHED);
+  isTeacher = false;
+  renderPresetsSection();
+}
+
+// ── Show teacher login modal ─────────────────────────────────────────────────
+function showTeacherLoginModal(onSuccess) {
+  // Don't allow login attempts before the bin has loaded
+  if (presetsLoading) {
+    alert('Still loading presets — please wait a moment and try again.');
+    return;
+  }
+  if (presetsError && presetsError !== 'not_configured') {
+    alert('Could not reach the presets server. Check your connection and refresh.');
+    return;
+  }
+
+  const hasPassword = !!cloudPwHash;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="j-modal-backdrop" id="teacher-modal-backdrop">
+      <div class="j-modal" style="max-width:400px">
+        <div class="pts-banner" style="font-size:1.6rem">Teacher Login</div>
+        <div class="q-text" style="font-size:1rem;margin-bottom:16px">
+          ${hasPassword ? 'Enter your teacher password to manage presets.' : 'No password set yet — enter one to claim teacher access.'}
+        </div>
+        <input id="teacher-pw-input" type="password" class="wager-input j-input" placeholder="Password" autocomplete="current-password" />
+        <div id="teacher-pw-error" style="color:#f87171;text-align:center;font-size:.9rem;min-height:20px;margin:4px 0 10px;"></div>
+        <div class="modal-actions">
+          <button class="btn-correct" onclick="submitTeacherLogin()">
+            ${hasPassword ? 'Login' : 'Set Password'}
+          </button>
+          <button class="btn-close" onclick="closeTeacherModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `);
+  document.getElementById('teacher-pw-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitTeacherLogin();
+  });
+  setTimeout(() => document.getElementById('teacher-pw-input')?.focus(), 50);
+  window._teacherLoginCallback = onSuccess;
+}
+
+async function submitTeacherLogin() {
+  const pw = document.getElementById('teacher-pw-input')?.value || '';
+  if (!pw) { document.getElementById('teacher-pw-error').textContent = 'Please enter a password.'; return; }
+  const ok = await teacherLogin(pw);
+  if (ok) {
+    closeTeacherModal();
+    renderPresetsSection();
+    if (window._teacherLoginCallback) { window._teacherLoginCallback(); window._teacherLoginCallback = null; }
+  } else {
+    document.getElementById('teacher-pw-error').textContent = 'Incorrect password.';
+    document.getElementById('teacher-pw-input').value = '';
+    document.getElementById('teacher-pw-input').focus();
+  }
+}
+
+function closeTeacherModal() {
+  document.getElementById('teacher-modal-backdrop')?.remove();
+  window._teacherLoginCallback = null;
+}
+
+// ── Show JSONBin config modal ────────────────────────────────────────────────
+function showConfigModal() {
+  if (!isTeacher) { showTeacherLoginModal(() => showConfigModal()); return; }
+  const alreadySetUp = !!getBinId();
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="j-modal-backdrop" id="config-modal-backdrop">
+      <div class="j-modal" style="max-width:500px">
+        <div class="pts-banner" style="font-size:1.4rem">JSONBin Setup</div>
+        <div class="q-text" style="font-size:.95rem;margin-bottom:4px;text-align:left;line-height:1.6">
+          1. Go to <a href="https://jsonbin.io" target="_blank" style="color:var(--jgold)">jsonbin.io</a> → sign up free (no credit card)<br>
+          2. Go to <strong>API Keys</strong> in your account → copy your <strong>Master Key</strong><br>
+          3. Paste it below — the bin will be <strong>created automatically</strong> ✨
+        </div>
+        <label style="display:block;font-size:.8rem;color:rgba(255,255,255,.6);margin:14px 0 4px;letter-spacing:.06em">MASTER API KEY</label>
+        <input id="cfg-api-key" class="wager-input" style="font-size:.95rem;font-family:monospace" type="password"
+          placeholder="$2a$10$…" value="${esc(getApiKey())}" />
+        ${alreadySetUp ? `<div style="font-size:.8rem;color:rgba(255,255,255,.5);text-align:center;margin-top:6px">Already connected · Bin ID: <code>${esc(getBinId())}</code></div>` : ''}
+        <div id="cfg-error" style="color:#f87171;text-align:center;font-size:.9rem;min-height:18px;margin:8px 0 4px;"></div>
+        <div id="cfg-status" style="color:#86efac;text-align:center;font-size:.9rem;min-height:18px;margin:0 0 8px;"></div>
+        <div class="modal-actions" style="margin-top:6px">
+          <button class="btn-correct" id="cfg-connect-btn" onclick="saveConfig()">
+            ${alreadySetUp ? '↺ Reconnect' : 'Connect & Create Bin'}
+          </button>
+          <button class="btn-close" onclick="document.getElementById('config-modal-backdrop').remove()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('cfg-api-key')?.focus(), 50);
+}
+
+async function saveConfig() {
+  const apiKey = document.getElementById('cfg-api-key')?.value.trim();
+  const errEl  = document.getElementById('cfg-error');
+  const staEl  = document.getElementById('cfg-status');
+  const btn    = document.getElementById('cfg-connect-btn');
+
+  if (!apiKey) { errEl.textContent = 'Please paste your Master API Key.'; return; }
+
+  errEl.textContent = '';
+  staEl.textContent = '⏳ Creating your presets bin…';
+  btn.disabled = true;
+
+  try {
+    // Create a new bin named "Jeopardy Presets" with an empty array
+    const res = await fetch(`${JSONBIN_BASE}/b`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': apiKey,
+        'X-Bin-Name': 'Jeopardy Presets',
+        'X-Bin-Private': 'false'
+      },
+      body: JSON.stringify({ presets: [] })
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`JSONBin error ${res.status}: ${txt}`);
+    }
+
+    const data = await res.json();
+    const binId = data.metadata?.id;
+    if (!binId) throw new Error('No bin ID returned. Check your API key and try again.');
+
+    localStorage.setItem(LS_BIN_ID, binId);
+    localStorage.setItem(LS_API_KEY, apiKey);
+
+    staEl.textContent = `Bin created — ID: ${binId}`;
+    btn.textContent = 'Connected';
+
+    setTimeout(async () => {
+      document.getElementById('config-modal-backdrop')?.remove();
+      cloudPresets = [];
+      presetsLoading = false;
+      presetsError = null;
+      renderPresetsSection();
+    }, 1200);
+
+  } catch(e) {
+    errEl.textContent = e.message;
+    staEl.textContent = '';
+    btn.disabled = false;
+    btn.textContent = 'Try Again';
+  }
+}
+
+// ── Load preset into editor ──────────────────────────────────────────────────
+function loadPreset(idx) {
+  const preset = cloudPresets[idx];
+  if (!preset) return;
+  if (state.categories.some(c => c.questions.some(q => q.text || q.answer || q.imageData))) {
+    if (!confirm(`Load "${preset.name}"? This will replace your current questions.`)) return;
+  }
+  state.categories = JSON.parse(JSON.stringify(preset.categories));
+  state.setupTab = 0;
+  render();
+}
+
+// ── Save current board as preset (teacher only) ──────────────────────────────
+function saveCurrentAsPreset() {
+  if (!isTeacher) { showTeacherLoginModal(() => saveCurrentAsPreset()); return; }
+  const nameEl = document.getElementById('preset-name-input');
+  const name   = (nameEl?.value || '').trim();
+  if (!name) { alert('Please enter a preset name.'); nameEl?.focus(); return; }
+
+  const existing = cloudPresets.findIndex(p => p.name === name);
+  const entry = {
+    name,
+    savedAt: new Date().toLocaleDateString(),
+    categories: JSON.parse(JSON.stringify(state.categories))
+  };
+
+  if (existing >= 0) {
+    if (!confirm(`Overwrite preset "${name}"?`)) return;
+    cloudPresets[existing] = entry;
+  } else {
+    cloudPresets.push(entry);
+  }
+
+  if (nameEl) nameEl.value = '';
+  presetsLoading = true;
+  renderPresetsSection();
+
+  pushCloudData(cloudPresets, cloudPwHash).then(() => {
+    presetsLoading = false;
+    renderPresetsSection();
+  }).catch(e => {
+    presetsLoading = false;
+    presetsError = e.message;
+    renderPresetsSection();
+  });
+}
+
+// ── Delete preset (teacher only) ─────────────────────────────────────────────
+function deletePreset(idx) {
+  if (!isTeacher) { showTeacherLoginModal(() => {}); return; }
+  const name = cloudPresets[idx]?.name;
+  if (!confirm(`Delete preset "${name}"?`)) return;
+  cloudPresets.splice(idx, 1);
+  presetsLoading = true;
+  renderPresetsSection();
+  pushCloudData(cloudPresets, cloudPwHash).then(() => {
+    presetsLoading = false;
+    renderPresetsSection();
+  }).catch(e => {
+    presetsLoading = false;
+    presetsError = e.message;
+    renderPresetsSection();
+  });
+}
+
+// ── Re-render just the presets bar (without full page re-render) ─────────────
+function renderPresetsSection() {
+  const el = document.getElementById('presets-bar-container');
+  if (el) el.innerHTML = renderPresetsBarInner();
+}
+
+function renderPresetsBarInner() {
+  if (!getBinId() || !getApiKey()) {
+    return `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="preset-empty">Cloud presets not configured.</span>
+        ${isTeacher
+          ? `<button class="btn-save-preset" onclick="showConfigModal()">Connect JSONBin</button>
+             <button class="btn-outline-sm" onclick="teacherLogout()">Logout</button>`
+          : `<button class="btn-save-preset" onclick="showConfigModal()">Connect JSONBin</button>`}
+      </div>`;
+  }
+
+  const teacherControls = isTeacher
+    ? `<button class="btn-outline-sm" onclick="teacherLogout()">Logout</button>
+       <button class="btn-outline-sm" onclick="showConfigModal()">Config</button>`
+    : `<button class="btn-outline-sm" onclick="showTeacherLoginModal(()=>{})">Teacher Login</button>`;
+
+  if (presetsLoading) return `
+    <div class="bar-top"><p class="bar-title">Saved Presets</p><div style="display:flex;gap:8px">${teacherControls}</div></div>
+    <div class="preset-empty" style="padding:10px 0">Loading presets...</div>`;
+
+  if (presetsError && presetsError !== 'not_configured') return `
+    <div class="bar-top"><p class="bar-title">Saved Presets</p><div style="display:flex;gap:8px">
+      <button class="btn-outline-sm" onclick="fetchCloudPresets()">Retry</button>${teacherControls}
+    </div></div>
+    <div class="preset-empty" style="color:#b00020">Error loading presets: ${esc(presetsError)}</div>`;
+
+  const cards = cloudPresets.length
+    ? cloudPresets.map((p, i) => `
+        <div class="preset-card" onclick="loadPreset(${i})" title="Load '${esc(p.name)}'">
+          ${isTeacher ? `<button class="pc-del" onclick="event.stopPropagation();deletePreset(${i})" title="Delete">✕</button>` : ''}
+          <div class="pc-name">${esc(p.name)}</div>
+          <div class="pc-meta">${p.categories?.length || 0} cats · ${esc(p.savedAt || '')}</div>
+        </div>`).join('')
+    : `<div class="preset-empty">No presets saved yet${isTeacher ? ' — create one below.' : ' Ask your teacher to add some.'}
+       </div>`;
+
+  const saveRow = isTeacher ? `
+    <div class="save-preset-row">
+      <input id="preset-name-input" type="text" placeholder="Preset name (e.g. Unit 3, Period 2)..." class="j-input" />
+      <button class="btn-save-preset" onclick="saveCurrentAsPreset()">Save as Preset</button>
+    </div>` : '';
+
+  return `
+    <div class="bar-top">
+      <p class="bar-title">Saved Presets</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-outline-sm" onclick="fetchCloudPresets()">Refresh</button>
+        ${teacherControls}
+      </div>
+    </div>
+    <div class="preset-grid">${cards}</div>
+    ${saveRow}`;
+}
+
+function renderPresetsBar() {
+  return `<div class="j-presets-bar"><div id="presets-bar-container">${renderPresetsBarInner()}</div></div>`;
+}
+
+
+const POINT_VALUES = [200, 400, 600, 800, 1000];
+
+let state = {
+  screen: 'setup',   // 'setup' | 'board' | 'modal' | 'dd_wager' | 'score_adj'
+  categories: [],    // [{name, questions:[{text,answer,image,imageData,dailyDouble}]}]
+  players: [],       // [{name, score}]
+  activePlayer: 0,
+  modal: null,       // {catIdx, qIdx, pts, showAnswer, wager}
+  usedCells: {},     // "catIdx-qIdx" -> true
+  setupTab: 0,
+};
+
+// ════════════════════════════════
+//  IMAGE HANDLING
+// ════════════════════════════════
+function readImageFile(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+// ════════════════════════════════
+//  RENDER HELPERS
+// ════════════════════════════════
+const app = document.getElementById('jeopardy-app');
+
+function render() {
+  if (state.screen === 'setup') renderSetup();
+  else renderBoard();
+  if (state.screen === 'modal') renderModal();
+  if (state.screen === 'dd_wager') renderDDWager();
+  if (state.screen === 'score_adj') renderScoreAdj();
+  bindNavDropdowns();
+}
+
+// ════════════════════════════════
+//  SETUP SCREEN
+// ════════════════════════════════
+function defaultCategories() {
+  return [1,2,3,4,5].map((n) => ({
+    name: `Category ${n}`,
+    questions: POINT_VALUES.map(pts => ({ text: '', answer: '', imageData: null, dailyDouble: false }))
+  }));
+}
+
+function ensureDefaults() {
+  if (state.categories.length === 0) state.categories = defaultCategories();
+  if (state.players.length === 0) state.players = [{name:'Player 1', score:0},{name:'Player 2', score:0}];
+}
+
+function renderSetup() {
+  ensureDefaults();
+  const tabs = state.categories.map((cat, i) => `
+    <button class="j-tab ${state.setupTab === i ? 'active' : ''}" onclick="setSetupTab(${i})">${cat.name || `Cat ${i+1}`}</button>
+  `).join('');
+
+  const panels = state.categories.map((cat, ci) => `
+    <div class="j-cat-panel ${state.setupTab === ci ? 'active' : ''}">
+      <div class="j-cat-row">
+        <input type="text" placeholder="Category name" value="${esc(cat.name)}" class="j-input"
+          oninput="setCatName(${ci}, this.value)" class="j-input" />
+        ${state.categories.length > 1 ? `<button class="remove-cat-btn" onclick="removeCat(${ci})">✕ Remove</button>` : ''}
+      </div>
+      ${cat.questions.map((q, qi) => renderQBlock(ci, qi, q)).join('')}
+    </div>
+  `).join('');
+
+  const playerRows = state.players.map((p, i) => `
+    <div class="j-player-setup">
+      <input type="text" placeholder="Player name" value="${esc(p.name)}" class="j-input"
+        oninput="setPlayerName(${i}, this.value)" />
+      ${state.players.length > 1 ? `<button class="btn-danger" onclick="removePlayer(${i})">✕</button>` : ''}
+    </div>
+  `).join('');
+
+  app.innerHTML = `
+    <div class="j-setup">
+      <h2>Jeopardy</h2>
+      <p class="page-sub">Configure categories, questions, and players — then launch the board.</p>
+      ${renderPresetsBar()}
+
+      <div class="j-section-title">Players</div>
+      ${playerRows}
+      <button class="add-cat-btn" onclick="addPlayer()">+ Add Player</button>
+
+      <div class="j-section-title" style="margin-top:24px">Categories & Questions</div>
+      <div class="j-tabs">${tabs}</div>
+      <button class="add-cat-btn" onclick="addCat()">+ Add Category</button>
+      ${panels}
+
+      <div style="margin-top:28px; display:flex; gap:12px; flex-wrap:wrap;">
+        <button class="btn-primary" onclick="startGame()">Launch Board</button>
+        <button class="btn-secondary" onclick="resetSetup()">Reset</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderQBlock(ci, qi, q) {
+  const pts = POINT_VALUES[qi];
+  const imgHtml = q.imageData ? `
+    <div class="img-preview">
+      <img src="${q.imageData}" alt="Question image" />
+      <button onclick="clearImage(${ci},${qi})">✕ Remove</button>
+    </div>
+  ` : `
+    <label for="img-${ci}-${qi}" class="btn-upload">Add Image</label>
+    <input type="file" id="img-${ci}-${qi}" accept="image/*" onchange="handleImage(event,${ci},${qi})" />
+  `;
+
+  return `
+    <div class="j-q-block">
+      <div class="q-header">
+        <span class="pts">$${pts}</span>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;">
+          <input type="checkbox" ${q.dailyDouble ? 'checked' : ''} onchange="toggleDD(${ci},${qi},this.checked)" />
+          Daily Double
+        </label>
+      </div>
+      <span class="field-label">Question / Clue</span>
+      <textarea placeholder="Enter the clue shown to players…" oninput="setQText(${ci},${qi},this.value)">${esc(q.text)}</textarea>
+      <span class="field-label">Answer</span>
+      <textarea placeholder="Correct answer (shown when revealed)…" rows="2" oninput="setQAnswer(${ci},${qi},this.value)">${esc(q.answer)}</textarea>
+      <span class="field-label">Image (optional)</span>
+      ${imgHtml}
+    </div>
+  `;
+}
+
+// ════════════════════════════════
+//  BOARD SCREEN
+// ════════════════════════════════
+function renderBoard() {
+  const cats = state.categories;
+  const numCols = cats.length;
+
+  // Header row
+  const headers = cats.map(cat =>
+    `<div class="j-col-header">${esc(cat.name)}</div>`
+  ).join('');
+
+  // Question cells
+  let rows = '';
+  for (let qi = 0; qi < POINT_VALUES.length; qi++) {
+    for (let ci = 0; ci < cats.length; ci++) {
+      const key = `${ci}-${qi}`;
+      const used = !!state.usedCells[key];
+      const dd = cats[ci].questions[qi]?.dailyDouble;
+      rows += `<div class="j-cell ${used ? 'used' : ''} ${dd && !used ? 'daily-double' : ''}"
+        ${used ? '' : `onclick="openQ(${ci},${qi})"`}>
+        ${used ? '' : `$${POINT_VALUES[qi]}`}
+      </div>`;
+    }
+  }
+
+  const allUsed = Object.keys(state.usedCells).length >= numCols * POINT_VALUES.length;
+
+  const playerChips = state.players.map((p, i) => `
+    <div class="j-player-chip ${i === state.activePlayer ? 'active-player' : ''}"
+         onclick="setActivePlayer(${i})" title="Click to set active">
+      <span class="chip-name">${esc(p.name)}</span>
+      <span class="chip-score">$${p.score.toLocaleString()}</span>
+    </div>
+  `).join('');
+
+  app.innerHTML = `
+    <div class="j-board-wrap">
+      <div class="j-score-bar">
+        <h2>Jeopardy</h2>
+        <div class="j-player-scores">${playerChips}</div>
+        <button class="btn-secondary" onclick="editSetup()" style="white-space:nowrap">Edit / New</button>
+      </div>
+
+      ${allUsed ? `<div class="game-over-banner card">
+        <h2>Game Over</h2>
+        <div class="winner">${getWinner()}</div>
+        <button class="btn-primary" onclick="resetBoard()">Play Again</button>
+      </div>` : ''}
+
+      <div class="j-board" style="grid-template-columns: repeat(${numCols}, 1fr);">
+        ${headers}
+        ${rows}
+      </div>
+      <div class="small" style="margin-top:10px">
+        Click player chip to set who's answering. 
+        ${state.categories.some(c=>c.questions.some(q=>q.dailyDouble)) ? '⭐ <strong>Daily Double</strong> cells are highlighted.' : ''}
+      </div>
+    </div>
+  `;
+}
+
+function getWinner() {
+  const max = Math.max(...state.players.map(p => p.score));
+  const winners = state.players.filter(p => p.score === max);
+  if (winners.length === 1) return `Winner: ${winners[0].name} with $${max.toLocaleString()}!`;
+  return `Tie: ${winners.map(w=>w.name).join(' & ')} with $${max.toLocaleString()}!`;
+}
+
+// ════════════════════════════════
+//  QUESTION MODAL
+// ════════════════════════════════
+function openQ(ci, qi) {
+  const key = `${ci}-${qi}`;
+  if (state.usedCells[key]) return;
+  const q = state.categories[ci].questions[qi];
+  const pts = POINT_VALUES[qi];
+
+  if (q.dailyDouble) {
+    state.modal = { ci, qi, pts, showAnswer: false, wager: pts };
+    state.screen = 'dd_wager';
+    render();
+    return;
+  }
+
+  state.modal = { ci, qi, pts, showAnswer: false };
+  state.screen = 'modal';
+  render();
+}
+
+function renderModal() {
+  const { ci, qi, pts, showAnswer } = state.modal;
+  const q = state.categories[ci].questions[qi];
+
+  const imgHtml = q.imageData ? `
+    <div class="q-image"><img src="${q.imageData}" alt="Clue image" /></div>
+  ` : '';
+
+  const answerHtml = showAnswer ? `
+    <div class="answer-reveal">
+      <div class="alabel">Answer</div>
+      <div>${esc(q.answer) || '<em style="opacity:.6">No answer provided</em>'}</div>
+    </div>
+    <div class="modal-actions">
+      ${state.players.map((p,i) => `
+        <button class="btn-correct" onclick="awardPoints(${i}, ${pts})">✓ ${esc(p.name)}</button>
+      `).join('')}
+      <button class="btn-wrong" onclick="noCorrect()">✗ No one</button>
+    </div>
+  ` : `
+    <div class="modal-actions">
+      <button class="btn-correct" onclick="revealAnswer()">Reveal Answer</button>
+      <button class="btn-close" onclick="closeModal()">Skip</button>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="j-modal-backdrop" id="j-modal-backdrop" onclick="backdropClick(event)">
+      <div class="j-modal">
+        <div class="pts-banner">$${pts.toLocaleString()}</div>
+        <div class="q-text">${esc(q.text) || '<em>No clue text entered.</em>'}</div>
+        ${imgHtml}
+        ${answerHtml}
+      </div>
+    </div>
+  `);
+}
+
+function renderDDWager() {
+  const { ci, qi, pts } = state.modal;
+  const maxWager = Math.max(pts, state.players[state.activePlayer]?.score || pts);
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="j-modal-backdrop" id="j-modal-backdrop">
+      <div class="j-modal">
+        <div class="dd-banner">DAILY DOUBLE</div>
+        <div class="q-text" style="margin-bottom:6px">${esc(state.players[state.activePlayer]?.name || 'Player')}, enter your wager:</div>
+        <input class="wager-input" id="wager-input" type="number" min="0" max="${maxWager}" value="${pts}" />
+        <div class="small" style="color:rgba(255,255,255,.6);text-align:center;margin-bottom:14px">Max: $${maxWager.toLocaleString()}</div>
+        <div class="modal-actions">
+          <button class="btn-primary" onclick="confirmWager()">Confirm Wager</button>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+function renderScoreAdj() {
+  const { ci, qi, pts, wager } = state.modal;
+  const q = state.categories[ci].questions[qi];
+  const awardPts = wager !== undefined ? wager : pts;
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="j-modal-backdrop" id="j-modal-backdrop" onclick="backdropClick(event)">
+      <div class="j-modal">
+        <div class="pts-banner">${wager !== undefined ? 'DAILY DOUBLE' : ''} $${awardPts.toLocaleString()}</div>
+        <div class="q-text">${esc(q.text) || '<em>No clue text entered.</em>'}</div>
+        ${q.imageData ? `<div class="q-image"><img src="${q.imageData}" /></div>` : ''}
+        ${state.modal.showAnswer ? `
+          <div class="answer-reveal">
+            <div class="alabel">Answer</div>
+            <div>${esc(q.answer) || '<em style="opacity:.6">No answer</em>'}</div>
+          </div>
+          <div class="score-adj">Award points to:</div>
+          <div class="modal-actions">
+            ${state.players.map((p,i) => `
+              <button class="btn-correct" onclick="awardPoints(${i}, ${awardPts})">✓ ${esc(p.name)}</button>
+            `).join('')}
+            <button class="btn-wrong" onclick="noCorrect()">✗ Wrong (–$${awardPts.toLocaleString()})</button>
+          </div>
+        ` : `
+          <div class="modal-actions">
+            <button class="btn-correct" onclick="revealAnswer()">Reveal Answer</button>
+            <button class="btn-close" onclick="closeModal()">Skip</button>
+          </div>
+        `}
+      </div>
+    </div>
+  `);
+}
+
+// ════════════════════════════════
+//  ACTIONS
+// ════════════════════════════════
+function revealAnswer() {
+  state.modal.showAnswer = true;
+  removeModal();
+  if (state.screen === 'score_adj') renderScoreAdj();
+  else renderModal();
+}
+
+function awardPoints(playerIdx, pts) {
+  state.players[playerIdx].score += pts;
+  state.activePlayer = playerIdx;
+  markUsed();
+}
+
+function noCorrect() {
+  const { wager } = state.modal;
+  if (wager !== undefined) {
+    state.players[state.activePlayer].score -= wager;
+  }
+  markUsed();
+}
+
+function markUsed() {
+  const { ci, qi } = state.modal;
+  state.usedCells[`${ci}-${qi}`] = true;
+  state.modal = null;
+  state.screen = 'board';
+  removeModal();
+  render();
+}
+
+function closeModal() {
+  state.modal = null;
+  state.screen = 'board';
+  removeModal();
+  render();
+}
+
+function backdropClick(e) {
+  if (e.target.id === 'j-modal-backdrop') closeModal();
+}
+
+function removeModal() {
+  const el = document.getElementById('j-modal-backdrop');
+  if (el) el.remove();
+}
+
+function confirmWager() {
+  const val = parseInt(document.getElementById('wager-input').value) || POINT_VALUES[state.modal.qi];
+  state.modal.wager = Math.max(0, val);
+  state.screen = 'score_adj';
+  removeModal();
+  renderScoreAdj();
+}
+
+function setActivePlayer(i) {
+  state.activePlayer = i;
+  render();
+}
+
+// ── Setup actions ──
+function setCatName(ci, v) { state.categories[ci].name = v; }
+function setQText(ci, qi, v) { state.categories[ci].questions[qi].text = v; }
+function setQAnswer(ci, qi, v) { state.categories[ci].questions[qi].answer = v; }
+function toggleDD(ci, qi, v) { state.categories[ci].questions[qi].dailyDouble = v; }
+function setPlayerName(i, v) { state.players[i].name = v; }
+
+function addPlayer() {
+  state.players.push({ name: `Player ${state.players.length + 1}`, score: 0 });
+  render();
+}
+function removePlayer(i) {
+  state.players.splice(i, 1);
+  if (state.activePlayer >= state.players.length) state.activePlayer = 0;
+  render();
+}
+
+function addCat() {
+  state.categories.push({
+    name: `Category ${state.categories.length + 1}`,
+    questions: POINT_VALUES.map(() => ({ text: '', answer: '', imageData: null, dailyDouble: false }))
+  });
+  state.setupTab = state.categories.length - 1;
+  render();
+}
+
+function removeCat(ci) {
+  state.categories.splice(ci, 1);
+  state.setupTab = Math.max(0, state.setupTab - 1);
+  render();
+}
+
+function setSetupTab(i) {
+  state.setupTab = i;
+  render();
+}
+
+async function handleImage(event, ci, qi) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const data = await readImageFile(file);
+  state.categories[ci].questions[qi].imageData = data;
+  render();
+}
+
+function clearImage(ci, qi) {
+  state.categories[ci].questions[qi].imageData = null;
+  render();
+}
+
+function startGame() {
+  state.screen = 'board';
+  state.usedCells = {};
+  state.players.forEach(p => p.score = 0);
+  render();
+}
+
+function editSetup() {
+  state.screen = 'setup';
+  render();
+}
+
+function resetSetup() {
+  if (!confirm('Reset all categories and questions?')) return;
+  state.categories = defaultCategories();
+  state.players = [{name:'Player 1', score:0},{name:'Player 2', score:0}];
+  state.setupTab = 0;
+  render();
+}
+
+function resetBoard() {
+  state.usedCells = {};
+  state.players.forEach(p => p.score = 0);
+  render();
+}
+
+// ── Escape HTML ──
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Nav dropdowns ──
+function bindNavDropdowns() {
+  document.querySelectorAll('.dropbtn').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      document.querySelectorAll('.dropdown-content').forEach(m => {
+        if (m !== btn.nextElementSibling) m.style.display = 'none';
+      });
+      const menu = btn.nextElementSibling;
+      menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+    };
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown-content').forEach(m => m.style.display = 'none');
+  }, { once: true });
+}
+
+// ── Init ──
+checkTeacherSession();
+render();
+fetchCloudPresets();
+</script>
+
+</body>
+</html>
