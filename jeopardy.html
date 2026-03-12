@@ -306,6 +306,25 @@
     }
     .btn-save-preset:hover { opacity: .88; }
 
+    .preset-card .pc-actions {
+      display: flex; gap: 4px; margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+    .pc-act-btn {
+      flex: 1; background: var(--badge); color: var(--nav); border: 1px solid #c7d2fe;
+      padding: 4px 8px; border-radius: 6px; font: inherit; font-size: 11px;
+      font-weight: 700; cursor: pointer; text-align: center;
+    }
+    .pc-act-btn:hover { background: #dde5ff; }
+    .pc-act-del { background: #fff0f0; color: #b00020; border-color: #f5c6c6; }
+    .pc-act-del:hover { background: #ffe0e0; }
+
+    .editing-banner {
+      background: var(--badge); border: 1px solid #c7d2fe; border-radius: 8px;
+      padding: 8px 12px; font-size: 13px; color: var(--nav);
+      margin-bottom: 8px; display: flex; align-items: center;
+    }
+
     /* Game over */
     .game-over-banner { text-align: center; padding: 28px; }
     .game-over-banner h2 { font-size: 24px; font-weight: 750; color: var(--text); margin: 0 0 6px; }
@@ -367,93 +386,57 @@
 
 <script>
 // ════════════════════════════════
-//  PRESETS — JSONBin.io cloud storage
-//  • Anyone can read/load presets
-//  • Save/delete requires teacher password (hash stored in the bin itself)
+//  PRESETS — Supabase backend
+//  Students: read & load presets
+//  Teacher:  create, edit, delete (password protected)
 // ════════════════════════════════
 
-const JSONBIN_BASE   = 'https://api.jsonbin.io/v3';
-const LS_BIN_ID      = 'jeopardy_bin_id';
-const LS_API_KEY     = 'jeopardy_api_key';
-const LS_AUTHED      = 'jeopardy_authed';  // session flag only
+// ── CONFIG — paste your Supabase values here ─────────────────────────────────
+const SUPABASE_URL    = 'https://swqjeixjzookbuqleaar.supabase.co';        // e.g. https://xyzxyz.supabase.co
+const SUPABASE_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3cWplaXhqem9va2J1cWxlYWFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyODc0MDksImV4cCI6MjA4ODg2MzQwOX0.icKluMe5NtrgRECT0pHDxDj9osTERqc-KkPzGyvkPiE';   // safe to be public
+const TABLE           = 'jeopardy_presets';
+const CONFIG_TABLE    = 'jeopardy_config';
+// ─────────────────────────────────────────────────────────────────────────────
+
+const API        = `${SUPABASE_URL}/rest/v1/${TABLE}`;
+const CONFIG_API = `${SUPABASE_URL}/rest/v1/${CONFIG_TABLE}`;
+const HEADS_READ  = { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` };
+const HEADS_WRITE = { ...HEADS_READ, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+const LS_AUTHED = 'jeopardy_authed_v3';
 
 async function hashPw(pw) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw + 'jeopardy_salt'));
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('jeopardy2024:' + pw));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
-// ── Cloud state ─────────────────────────────────────────────────────────────
-let cloudPresets    = [];
-let cloudPwHash     = null;   // teacher password hash stored in the bin
-let presetsLoading  = true;
-let presetsError    = null;
-let isTeacher       = false;
+// ── State ────────────────────────────────────────────────────────────────────
+let cloudPresets   = [];
+let cloudPwHash    = null;   // loaded from Supabase config table
+let presetsLoading = true;
+let presetsError   = null;
+let isTeacher      = false;
+let editingPreset  = null;
 
-function getBinId()  { return localStorage.getItem(LS_BIN_ID) || ''; }
-function getApiKey() { return localStorage.getItem(LS_API_KEY) || ''; }
-
-// ── Fetch from JSONBin ───────────────────────────────────────────────────────
-async function fetchCloudPresets() {
-  presetsLoading = true;
-  presetsError = null;
-  renderPresetsSection();
-
-  const binId  = getBinId();
-  const apiKey = getApiKey();
-  if (!binId || !apiKey) {
-    presetsLoading = false;
-    presetsError = 'not_configured';
-    renderPresetsSection();
-    return;
-  }
-
-  try {
-    const res = await fetch(`${JSONBIN_BASE}/b/${binId}/latest`, {
-      headers: { 'X-Master-Key': apiKey }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    cloudPresets = Array.isArray(data.record?.presets) ? data.record.presets : [];
-    cloudPwHash  = data.record?.pwHash || null;
-    presetsLoading = false;
-    renderPresetsSection();
-  } catch(e) {
-    presetsLoading = false;
-    presetsError = e.message;
-    renderPresetsSection();
-  }
-}
-
-// ── Write back to JSONBin (always include pwHash) ───────────────────────────
-async function pushCloudData(presets, pwHash) {
-  const binId  = getBinId();
-  const apiKey = getApiKey();
-  const res = await fetch(`${JSONBIN_BASE}/b/${binId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-Master-Key': apiKey },
-    body: JSON.stringify({ presets, pwHash })
-  });
-  if (!res.ok) throw new Error(`Save failed: HTTP ${res.status}`);
-  return res.json();
-}
-
-// ── Teacher auth ─────────────────────────────────────────────────────────────
+// ── Auth ─────────────────────────────────────────────────────────────────────
 function checkTeacherSession() {
   isTeacher = sessionStorage.getItem(LS_AUTHED) === '1';
 }
 
 async function teacherLogin(pw) {
   const hash = await hashPw(pw);
-
   if (!cloudPwHash) {
-    // No password set yet in the cloud — set it now
+    // No password set yet — store it in Supabase so it's global
+    await sbFetch(`${CONFIG_API}`, {
+      method: 'POST',
+      headers: { ...HEADS_WRITE, 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify({ key: 'teacher_pw_hash', value: hash })
+    });
     cloudPwHash = hash;
-    await pushCloudData(cloudPresets, cloudPwHash);
     sessionStorage.setItem(LS_AUTHED, '1');
     isTeacher = true;
     return true;
   }
-
   if (hash === cloudPwHash) {
     sessionStorage.setItem(LS_AUTHED, '1');
     isTeacher = true;
@@ -468,32 +451,131 @@ function teacherLogout() {
   renderPresetsSection();
 }
 
-// ── Show teacher login modal ─────────────────────────────────────────────────
-function showTeacherLoginModal(onSuccess) {
-  // Don't allow login attempts before the bin has loaded
-  if (presetsLoading) {
-    alert('Still loading presets — please wait a moment and try again.');
-    return;
+// ── Supabase API helpers ──────────────────────────────────────────────────────
+async function sbFetch(url, opts = {}) {
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`${res.status}: ${txt}`);
   }
-  if (presetsError && presetsError !== 'not_configured') {
-    alert('Could not reach the presets server. Check your connection and refresh.');
-    return;
-  }
+  return res.status === 204 ? null : res.json();
+}
 
+async function fetchCloudPresets() {
+  presetsLoading = true;
+  presetsError   = null;
+  renderPresetsSection();
+  try {
+    // Fetch presets and teacher password hash in parallel
+    const [presets, config] = await Promise.all([
+      sbFetch(`${API}?select=id,name,updated_at,categories&order=name.asc`, { headers: HEADS_READ }),
+      sbFetch(`${CONFIG_API}?key=eq.teacher_pw_hash&select=value`, { headers: HEADS_READ })
+    ]);
+    cloudPresets   = presets || [];
+    cloudPwHash    = config?.[0]?.value || null;
+    presetsLoading = false;
+  } catch(e) {
+    presetsError   = e.message;
+    presetsLoading = false;
+  }
+  renderPresetsSection();
+}
+
+async function createPreset(name, categories) {
+  return sbFetch(API, {
+    method: 'POST',
+    headers: HEADS_WRITE,
+    body: JSON.stringify({ name, categories })
+  });
+}
+
+async function updatePreset(id, name, categories) {
+  return sbFetch(`${API}?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: HEADS_WRITE,
+    body: JSON.stringify({ name, categories, updated_at: new Date().toISOString() })
+  });
+}
+
+async function deletePreset(id, name) {
+  if (!confirm(`Delete preset "${name}"?`)) return;
+  try {
+    await sbFetch(`${API}?id=eq.${id}`, { method: 'DELETE', headers: HEADS_WRITE });
+    await fetchCloudPresets();
+  } catch(e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+// ── Load preset into editor ───────────────────────────────────────────────────
+function loadPreset(id) {
+  const preset = cloudPresets.find(p => p.id === id);
+  if (!preset) return;
+  const hasContent = state.categories.some(c => c.questions.some(q => q.text || q.answer || q.imageData));
+  if (hasContent && !confirm(`Load "${preset.name}"? This will replace your current questions.`)) return;
+  state.categories = JSON.parse(JSON.stringify(preset.categories));
+  state.setupTab = 0;
+  editingPreset = null;
+  render();
+}
+
+// ── Load preset INTO editor for editing (teacher only) ────────────────────────
+function editPreset(id) {
+  const preset = cloudPresets.find(p => p.id === id);
+  if (!preset) return;
+  state.categories = JSON.parse(JSON.stringify(preset.categories));
+  state.setupTab = 0;
+  editingPreset = { id, name: preset.name };
+  // Update the preset name input after render
+  render();
+  setTimeout(() => {
+    const el = document.getElementById('preset-name-input');
+    if (el) el.value = preset.name;
+  }, 0);
+}
+
+// ── Save / update preset ──────────────────────────────────────────────────────
+async function saveCurrentAsPreset() {
+  if (!isTeacher) { showTeacherLoginModal(() => saveCurrentAsPreset()); return; }
+  const nameEl = document.getElementById('preset-name-input');
+  const name   = (nameEl?.value || '').trim();
+  if (!name) { alert('Enter a preset name.'); nameEl?.focus(); return; }
+
+  const btn = document.getElementById('save-preset-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+  try {
+    if (editingPreset) {
+      await updatePreset(editingPreset.id, name, state.categories);
+      editingPreset = null;
+    } else {
+      await createPreset(name, state.categories);
+    }
+    if (nameEl) nameEl.value = '';
+    await fetchCloudPresets();
+  } catch(e) {
+    alert('Save failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Save as Preset'; }
+  }
+}
+
+// ── Teacher login modal ───────────────────────────────────────────────────────
+function showTeacherLoginModal(onSuccess) {
   const hasPassword = !!cloudPwHash;
   document.body.insertAdjacentHTML('beforeend', `
     <div class="j-modal-backdrop" id="teacher-modal-backdrop">
       <div class="j-modal" style="max-width:400px">
-        <div class="pts-banner" style="font-size:1.6rem">Teacher Login</div>
-        <div class="q-text" style="font-size:1rem;margin-bottom:16px">
-          ${hasPassword ? 'Enter your teacher password to manage presets.' : 'No password set yet — enter one to claim teacher access.'}
+        <div class="pts-banner" style="font-size:1.5rem">Teacher Login</div>
+        <div class="q-text" style="font-size:.95rem;margin-bottom:14px;opacity:.85">
+          ${cloudPwHash
+            ? 'Enter the teacher password.'
+            : 'No password set yet — enter one to claim teacher access (stored globally).'}
         </div>
-        <input id="teacher-pw-input" type="password" class="wager-input j-input" placeholder="Password" autocomplete="current-password" />
-        <div id="teacher-pw-error" style="color:#f87171;text-align:center;font-size:.9rem;min-height:20px;margin:4px 0 10px;"></div>
+        <input id="teacher-pw-input" type="password" class="wager-input j-input"
+          placeholder="Password" autocomplete="current-password" />
+        <div id="teacher-pw-error" style="color:#f87171;text-align:center;font-size:.85rem;min-height:18px;margin:6px 0 10px;"></div>
         <div class="modal-actions">
-          <button class="btn-correct" onclick="submitTeacherLogin()">
-            ${hasPassword ? 'Login' : 'Set Password'}
-          </button>
+          <button class="btn-correct" onclick="submitTeacherLogin()">${hasPassword ? 'Login' : 'Set Password'}</button>
           <button class="btn-close" onclick="closeTeacherModal()">Cancel</button>
         </div>
       </div>
@@ -526,205 +608,66 @@ function closeTeacherModal() {
   window._teacherLoginCallback = null;
 }
 
-// ── Show JSONBin config modal ────────────────────────────────────────────────
-function showConfigModal() {
-  if (!isTeacher) { showTeacherLoginModal(() => showConfigModal()); return; }
-  const alreadySetUp = !!getBinId();
-  document.body.insertAdjacentHTML('beforeend', `
-    <div class="j-modal-backdrop" id="config-modal-backdrop">
-      <div class="j-modal" style="max-width:500px">
-        <div class="pts-banner" style="font-size:1.4rem">JSONBin Setup</div>
-        <div class="q-text" style="font-size:.95rem;margin-bottom:4px;text-align:left;line-height:1.6">
-          1. Go to <a href="https://jsonbin.io" target="_blank" style="color:var(--jgold)">jsonbin.io</a> → sign up free (no credit card)<br>
-          2. Go to <strong>API Keys</strong> in your account → copy your <strong>Master Key</strong><br>
-          3. Paste it below — the bin will be <strong>created automatically</strong> ✨
-        </div>
-        <label style="display:block;font-size:.8rem;color:rgba(255,255,255,.6);margin:14px 0 4px;letter-spacing:.06em">MASTER API KEY</label>
-        <input id="cfg-api-key" class="wager-input" style="font-size:.95rem;font-family:monospace" type="password"
-          placeholder="$2a$10$…" value="${esc(getApiKey())}" />
-        ${alreadySetUp ? `<div style="font-size:.8rem;color:rgba(255,255,255,.5);text-align:center;margin-top:6px">Already connected · Bin ID: <code>${esc(getBinId())}</code></div>` : ''}
-        <div id="cfg-error" style="color:#f87171;text-align:center;font-size:.9rem;min-height:18px;margin:8px 0 4px;"></div>
-        <div id="cfg-status" style="color:#86efac;text-align:center;font-size:.9rem;min-height:18px;margin:0 0 8px;"></div>
-        <div class="modal-actions" style="margin-top:6px">
-          <button class="btn-correct" id="cfg-connect-btn" onclick="saveConfig()">
-            ${alreadySetUp ? '↺ Reconnect' : 'Connect & Create Bin'}
-          </button>
-          <button class="btn-close" onclick="document.getElementById('config-modal-backdrop').remove()">Cancel</button>
-        </div>
-      </div>
-    </div>
-  `);
-  setTimeout(() => document.getElementById('cfg-api-key')?.focus(), 50);
-}
-
-async function saveConfig() {
-  const apiKey = document.getElementById('cfg-api-key')?.value.trim();
-  const errEl  = document.getElementById('cfg-error');
-  const staEl  = document.getElementById('cfg-status');
-  const btn    = document.getElementById('cfg-connect-btn');
-
-  if (!apiKey) { errEl.textContent = 'Please paste your Master API Key.'; return; }
-
-  errEl.textContent = '';
-  staEl.textContent = '⏳ Creating your presets bin…';
-  btn.disabled = true;
-
-  try {
-    // Create a new bin named "Jeopardy Presets" with an empty array
-    const res = await fetch(`${JSONBIN_BASE}/b`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': apiKey,
-        'X-Bin-Name': 'Jeopardy Presets',
-        'X-Bin-Private': 'false'
-      },
-      body: JSON.stringify({ presets: [] })
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`JSONBin error ${res.status}: ${txt}`);
-    }
-
-    const data = await res.json();
-    const binId = data.metadata?.id;
-    if (!binId) throw new Error('No bin ID returned. Check your API key and try again.');
-
-    localStorage.setItem(LS_BIN_ID, binId);
-    localStorage.setItem(LS_API_KEY, apiKey);
-
-    staEl.textContent = `Bin created — ID: ${binId}`;
-    btn.textContent = 'Connected';
-
-    setTimeout(async () => {
-      document.getElementById('config-modal-backdrop')?.remove();
-      cloudPresets = [];
-      presetsLoading = false;
-      presetsError = null;
-      renderPresetsSection();
-    }, 1200);
-
-  } catch(e) {
-    errEl.textContent = e.message;
-    staEl.textContent = '';
-    btn.disabled = false;
-    btn.textContent = 'Try Again';
-  }
-}
-
-// ── Load preset into editor ──────────────────────────────────────────────────
-function loadPreset(idx) {
-  const preset = cloudPresets[idx];
-  if (!preset) return;
-  if (state.categories.some(c => c.questions.some(q => q.text || q.answer || q.imageData))) {
-    if (!confirm(`Load "${preset.name}"? This will replace your current questions.`)) return;
-  }
-  state.categories = JSON.parse(JSON.stringify(preset.categories));
-  state.setupTab = 0;
-  render();
-}
-
-// ── Save current board as preset (teacher only) ──────────────────────────────
-function saveCurrentAsPreset() {
-  if (!isTeacher) { showTeacherLoginModal(() => saveCurrentAsPreset()); return; }
-  const nameEl = document.getElementById('preset-name-input');
-  const name   = (nameEl?.value || '').trim();
-  if (!name) { alert('Please enter a preset name.'); nameEl?.focus(); return; }
-
-  const existing = cloudPresets.findIndex(p => p.name === name);
-  const entry = {
-    name,
-    savedAt: new Date().toLocaleDateString(),
-    categories: JSON.parse(JSON.stringify(state.categories))
-  };
-
-  if (existing >= 0) {
-    if (!confirm(`Overwrite preset "${name}"?`)) return;
-    cloudPresets[existing] = entry;
-  } else {
-    cloudPresets.push(entry);
-  }
-
-  if (nameEl) nameEl.value = '';
-  presetsLoading = true;
-  renderPresetsSection();
-
-  pushCloudData(cloudPresets, cloudPwHash).then(() => {
-    presetsLoading = false;
-    renderPresetsSection();
-  }).catch(e => {
-    presetsLoading = false;
-    presetsError = e.message;
-    renderPresetsSection();
-  });
-}
-
-// ── Delete preset (teacher only) ─────────────────────────────────────────────
-function deletePreset(idx) {
-  if (!isTeacher) { showTeacherLoginModal(() => {}); return; }
-  const name = cloudPresets[idx]?.name;
-  if (!confirm(`Delete preset "${name}"?`)) return;
-  cloudPresets.splice(idx, 1);
-  presetsLoading = true;
-  renderPresetsSection();
-  pushCloudData(cloudPresets, cloudPwHash).then(() => {
-    presetsLoading = false;
-    renderPresetsSection();
-  }).catch(e => {
-    presetsLoading = false;
-    presetsError = e.message;
-    renderPresetsSection();
-  });
-}
-
-// ── Re-render just the presets bar (without full page re-render) ─────────────
+// ── Render presets bar ────────────────────────────────────────────────────────
 function renderPresetsSection() {
   const el = document.getElementById('presets-bar-container');
   if (el) el.innerHTML = renderPresetsBarInner();
 }
 
 function renderPresetsBarInner() {
-  if (!getBinId() || !getApiKey()) {
-    return `
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span class="preset-empty">Cloud presets not configured.</span>
-        ${isTeacher
-          ? `<button class="btn-save-preset" onclick="showConfigModal()">Connect JSONBin</button>
-             <button class="btn-outline-sm" onclick="teacherLogout()">Logout</button>`
-          : `<button class="btn-save-preset" onclick="showConfigModal()">Connect JSONBin</button>`}
-      </div>`;
-  }
+  const configured = SUPABASE_URL !== 'YOUR_SUPABASE_URL';
 
   const teacherControls = isTeacher
-    ? `<button class="btn-outline-sm" onclick="teacherLogout()">Logout</button>
-       <button class="btn-outline-sm" onclick="showConfigModal()">Config</button>`
+    ? `<button class="btn-outline-sm" onclick="teacherLogout()">Logout</button>`
     : `<button class="btn-outline-sm" onclick="showTeacherLoginModal(()=>{})">Teacher Login</button>`;
 
+  if (!configured) return `
+    <div class="bar-top"><p class="bar-title">Saved Presets</p></div>
+    <div class="preset-empty">Supabase not configured yet — see setup instructions.</div>`;
+
   if (presetsLoading) return `
-    <div class="bar-top"><p class="bar-title">Saved Presets</p><div style="display:flex;gap:8px">${teacherControls}</div></div>
-    <div class="preset-empty" style="padding:10px 0">Loading presets...</div>`;
+    <div class="bar-top"><p class="bar-title">Saved Presets</p>
+    <div style="display:flex;gap:8px">${teacherControls}</div></div>
+    <div class="preset-empty">Loading presets...</div>`;
 
-  if (presetsError && presetsError !== 'not_configured') return `
-    <div class="bar-top"><p class="bar-title">Saved Presets</p><div style="display:flex;gap:8px">
-      <button class="btn-outline-sm" onclick="fetchCloudPresets()">Retry</button>${teacherControls}
+  if (presetsError) return `
+    <div class="bar-top"><p class="bar-title">Saved Presets</p>
+    <div style="display:flex;gap:8px">
+      <button class="btn-outline-sm" onclick="fetchCloudPresets()">Retry</button>
+      ${teacherControls}
     </div></div>
-    <div class="preset-empty" style="color:#b00020">Error loading presets: ${esc(presetsError)}</div>`;
+    <div class="preset-empty" style="color:#b00020">Could not load presets: ${esc(presetsError)}</div>`;
 
-  const cards = cloudPresets.length
-    ? cloudPresets.map((p, i) => `
-        <div class="preset-card" onclick="loadPreset(${i})" title="Load '${esc(p.name)}'">
-          ${isTeacher ? `<button class="pc-del" onclick="event.stopPropagation();deletePreset(${i})" title="Delete">✕</button>` : ''}
-          <div class="pc-name">${esc(p.name)}</div>
-          <div class="pc-meta">${p.categories?.length || 0} cats · ${esc(p.savedAt || '')}</div>
-        </div>`).join('')
-    : `<div class="preset-empty">No presets saved yet${isTeacher ? ' — create one below.' : ' Ask your teacher to add some.'}
-       </div>`;
+  const cards = cloudPresets.length ? cloudPresets.map(p => {
+    const updated = p.updated_at ? new Date(p.updated_at).toLocaleDateString() : '';
+    const catCount = Array.isArray(p.categories) ? p.categories.length : '?';
+    const teacherActions = isTeacher ? `
+      <div class="pc-actions">
+        <button class="pc-act-btn" onclick="event.stopPropagation();editPreset('${p.id}')" title="Edit">Edit</button>
+        <button class="pc-act-btn pc-act-del" onclick="event.stopPropagation();deletePreset('${p.id}','${esc(p.name)}')" title="Delete">Delete</button>
+      </div>` : '';
+    return `
+      <div class="preset-card" onclick="loadPreset('${p.id}')" title="Load into editor">
+        <div class="pc-name">${esc(p.name)}</div>
+        <div class="pc-meta">${catCount} categories · ${updated}</div>
+        ${teacherActions}
+      </div>`;
+  }).join('') : `<div class="preset-empty">No presets yet${isTeacher ? ' — create one below.' : '.'}</div>`;
+
+  const editingBanner = editingPreset
+    ? `<div class="editing-banner">Editing: <strong>${esc(editingPreset.name)}</strong>
+        <button class="btn-outline-sm" style="margin-left:8px" onclick="cancelEdit()">Cancel</button>
+       </div>` : '';
 
   const saveRow = isTeacher ? `
+    ${editingBanner}
     <div class="save-preset-row">
-      <input id="preset-name-input" type="text" placeholder="Preset name (e.g. Unit 3, Period 2)..." class="j-input" />
-      <button class="btn-save-preset" onclick="saveCurrentAsPreset()">Save as Preset</button>
+      <input id="preset-name-input" type="text" class="j-input"
+        placeholder="${editingPreset ? 'Preset name...' : 'New preset name...'}"
+        value="${editingPreset ? esc(editingPreset.name) : ''}" />
+      <button id="save-preset-btn" class="btn-save-preset" onclick="saveCurrentAsPreset()">
+        ${editingPreset ? 'Save Changes' : 'Save as Preset'}
+      </button>
     </div>` : '';
 
   return `
@@ -739,10 +682,14 @@ function renderPresetsBarInner() {
     ${saveRow}`;
 }
 
+function cancelEdit() {
+  editingPreset = null;
+  renderPresetsSection();
+}
+
 function renderPresetsBar() {
   return `<div class="j-presets-bar"><div id="presets-bar-container">${renderPresetsBarInner()}</div></div>`;
 }
-
 
 const POINT_VALUES = [200, 400, 600, 800, 1000];
 
@@ -824,7 +771,6 @@ function renderSetup() {
   app.innerHTML = `
     <div class="j-setup">
       <h2>Jeopardy</h2>
-      <p class="page-sub">Configure categories, questions, and players — then launch the board.</p>
       ${renderPresetsBar()}
 
       <div class="j-section-title">Players</div>
@@ -931,7 +877,7 @@ function renderBoard() {
       </div>
       <div class="small" style="margin-top:10px">
         Click player chip to set who's answering. 
-        ${state.categories.some(c=>c.questions.some(q=>q.dailyDouble)) ? '⭐ <strong>Daily Double</strong> cells are highlighted.' : ''}
+        ${state.categories.some(c=>c.questions.some(q=>q.dailyDouble)) ? '<strong>Daily Double</strong> cells are highlighted.' : ''}
       </div>
     </div>
   `;
